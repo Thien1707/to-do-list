@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment & Secrets (bảo vệ mật khẩu database, jwt, v.v.)
+.env
+.env.*
+!.env.example
+*/.env
+*/.env.*
+
+# Production builds
+dist/
+*/dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/
+
