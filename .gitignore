@@ -2,24 +2,37 @@
 node_modules/
 */node_modules/
 
-# Environment & Secrets (bảo vệ mật khẩu database, jwt, v.v.)
+# Production builds
+dist/
+dist-ssr/
+build/
+*/dist/
+
+# Environment variables & Secrets
 .env
+.env.local
+.env.*.local
 .env.*
 !.env.example
 */.env
 */.env.*
 
-# Production builds
-dist/
-*/dist/
-build/
-
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# OS & Editor
-.DS_Store
+# Editor & OS files
 .vscode/
 .idea/
-
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+~$*
