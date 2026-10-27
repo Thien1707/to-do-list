@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import BurndownChart from '../components/BurndownChart';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
+import TaskHistoryModal from '../components/TaskHistoryModal';
+import TaskDateHistoryModal from '../components/TaskDateHistoryModal';
 
 const STATUS_COLUMNS = [
   { key: 'todo', label: 'To Do', color: '#64748b', icon: '📋' },
@@ -21,7 +24,9 @@ const PRIORITY_CONFIG = {
 };
 
 // ── Task Detail Modal ──────────────────────────────────────────
-function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
+// ── Task Detail Modal (Fully Editable) ──────────────────────────
+// ── Task Detail Modal (Editable & Role-Aware) ───────────────────
+function TaskDetailModal({ task, onClose, onUpdate, onDelete, projectMembers, sprints = [], canEdit = true }) {
   const [comments, setComments] = useState([]);
   const [activity, setActivity] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -29,9 +34,25 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
   const [editingComment, setEditingComment] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const commentRef = useRef(null);
 
+  // Edit states for task fields
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(task.title || '');
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState(task.description || '');
+  const [savingField, setSavingField] = useState(false);
+
+  // In-app confirm modal states (Replaces window.confirm)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
+
   useEffect(() => {
+    setTitleDraft(task.title || '');
+    setDescDraft(task.description || '');
+    setIsEditingTitle(false);
+    setIsEditingDesc(false);
     loadComments();
     loadActivity();
   }, [task.id]);
@@ -50,6 +71,65 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
     } catch {}
   };
 
+  const handleUpdateTaskField = async (fields, successMsg = 'Đã cập nhật nhiệm vụ') => {
+    if (!canEdit) {
+      toast.error('Bạn chỉ có quyền xem (Viewer), không thể chỉnh sửa');
+      return;
+    }
+    setSavingField(true);
+    try {
+      const { data } = await api.put(`/tasks/${task.id}`, fields);
+      const updated = data.data.task;
+      if (onUpdate) onUpdate(updated);
+      toast.success(successMsg);
+      loadActivity();
+      return updated;
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Cập nhật thất bại');
+      throw err;
+    } finally {
+      setSavingField(false);
+    }
+  };
+
+  const handleSaveTitle = async () => {
+    if (!canEdit) return;
+    const trimmed = titleDraft.trim();
+    if (!trimmed) {
+      toast.error('Tiêu đề không được để trống');
+      return;
+    }
+    if (trimmed === task.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    await handleUpdateTaskField({ title: trimmed }, 'Đã đổi tên nhiệm vụ');
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveDescription = async () => {
+    if (!canEdit) return;
+    const trimmed = descDraft.trim();
+    if (trimmed === (task.description || '')) {
+      setIsEditingDesc(false);
+      return;
+    }
+    await handleUpdateTaskField({ description: trimmed || null }, 'Đã cập nhật mô tả');
+    setIsEditingDesc(false);
+  };
+
+  const confirmDeleteTask = async () => {
+    try {
+      await api.delete(`/tasks/${task.id}`);
+      toast.success('Đã xóa nhiệm vụ thành công');
+      setShowDeleteModal(false);
+      if (onDelete) onDelete(task.id);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Xóa nhiệm vụ thất bại');
+    }
+  };
+
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -58,6 +138,7 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
       const { data } = await commentService.create(task.id, newComment.trim());
       setComments(cs => [...cs, data.data.comment]);
       setNewComment('');
+      loadActivity();
     } catch {
       toast.error('Gửi comment thất bại');
     } finally {
@@ -76,34 +157,15 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
     }
   };
 
-  const handleDeleteComment = async (c) => {
-    if (!confirm('Xóa comment này?')) return;
+  const confirmDeleteComment = async () => {
+    if (!commentToDelete) return;
     try {
-      await commentService.remove(task.id, c.id);
-      setComments(cs => cs.filter(x => x.id !== c.id));
+      await commentService.remove(task.id, commentToDelete.id);
+      setComments(cs => cs.filter(x => x.id !== commentToDelete.id));
       toast.success('Đã xóa comment');
+      setCommentToDelete(null);
     } catch {
       toast.error('Xóa comment thất bại');
-    }
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    try {
-      await api.patch(`/tasks/${task.id}/status`, { status: newStatus });
-      onUpdate({ ...task, status: newStatus });
-      toast.success('Đã cập nhật trạng thái');
-    } catch {
-      toast.error('Cập nhật thất bại');
-    }
-  };
-
-  const handleAssigneeChange = async (userId) => {
-    try {
-      await api.put(`/tasks/${task.id}`, { assignee_id: userId || null });
-      onUpdate({ ...task, assignee_id: userId });
-      toast.success('Đã cập nhật người thực hiện');
-    } catch {
-      toast.error('Cập nhật thất bại');
     }
   };
 
@@ -123,31 +185,179 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
       <div className="task-detail-modal animate-fadein">
         {/* Header */}
         <div className="task-detail-header">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1 }}>
-            <span style={{ fontSize: '1.4rem', marginTop: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: '1.4rem' }}>
               {STATUS_COLUMNS.find(s => s.key === task.status)?.icon}
             </span>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{task.title}</h2>
-              {task.Category && (
-                <span className="task-category-badge" style={{ '--cat-color': task.Category.color }}>
-                  {task.Category.name}
-                </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {canEdit && isEditingTitle ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={titleDraft}
+                    onChange={e => setTitleDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleSaveTitle();
+                      if (e.key === 'Escape') { setTitleDraft(task.title); setIsEditingTitle(false); }
+                    }}
+                    autoFocus
+                    style={{ fontSize: '1.05rem', fontWeight: 700, padding: '0.35rem 0.6rem' }}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    onClick={handleSaveTitle}
+                    disabled={savingField}
+                  >
+                    Lưu
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    onClick={() => { setTitleDraft(task.title); setIsEditingTitle(false); }}
+                  >
+                    Hủy
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h2
+                    style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, cursor: canEdit ? 'pointer' : 'default' }}
+                    onClick={() => canEdit && setIsEditingTitle(true)}
+                    title={canEdit ? 'Bấm để chỉnh sửa tên nhiệm vụ' : undefined}
+                  >
+                    {task.title}
+                  </h2>
+                  {canEdit && (
+                    <button
+                      className="btn-icon-xs"
+                      onClick={() => setIsEditingTitle(true)}
+                      title="Chỉnh sửa tên"
+                      style={{ opacity: 0.7 }}
+                    >
+                      ✏️
+                    </button>
+                  )}
+                  {!canEdit && (
+                    <span className="project-role-badge viewer" style={{ fontSize: '0.68rem', padding: '0.1rem 0.45rem' }}>
+                      👁️ Chỉ xem
+                    </span>
+                  )}
+                  {task.is_edited && (
+                    <span
+                      onClick={() => setShowHistoryModal(true)}
+                      style={{
+                        fontSize: '0.72rem',
+                        padding: '0.12rem 0.5rem',
+                        borderRadius: '12px',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        color: '#d97706',
+                        fontWeight: 600,
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                      }}
+                      title="Bấm để xem lịch sử chỉnh sửa chi tiết"
+                    >
+                      ✏️ (Đã chỉnh sửa • {task.edit_count || 1} lần)
+                    </span>
+                  )}
+                  {task.Category && (
+                    <span className="task-category-badge" style={{ '--cat-color': task.Category.color }}>
+                      {task.Category.name}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowHistoryModal(true)}
+              style={{ fontSize: '0.78rem', color: 'var(--primary)', border: '1px solid var(--border)' }}
+              title="Xem toàn bộ lịch sử chỉnh sửa của task này"
+            >
+              📜 Lịch sử {task.edit_count > 0 ? `(${task.edit_count})` : ''}
+            </button>
+            <button className="btn-icon" onClick={onClose} title="Đóng">✕</button>
+          </div>
         </div>
 
         <div className="task-detail-body">
           {/* Left panel: details */}
           <div className="task-detail-left">
-            {task.description && (
-              <div className="task-detail-section">
-                <h4>📝 Mô tả</h4>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>{task.description}</p>
+            {/* Description Section */}
+            <div className="task-detail-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h4 style={{ margin: 0 }}>📝 Mô tả nhiệm vụ</h4>
+                {canEdit && !isEditingDesc && (
+                  <button
+                    className="btn-link-sm"
+                    onClick={() => { setDescDraft(task.description || ''); setIsEditingDesc(true); }}
+                    style={{ fontSize: '0.78rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    ✏️ {task.description ? 'Chỉnh sửa' : '+ Thêm mô tả'}
+                  </button>
+                )}
               </div>
-            )}
+
+              {canEdit && isEditingDesc ? (
+                <div className="task-desc-editor">
+                  <textarea
+                    className="form-input"
+                    rows={4}
+                    value={descDraft}
+                    onChange={e => setDescDraft(e.target.value)}
+                    placeholder="Nhập mô tả chi tiết công việc, yêu cầu kỹ thuật, tài liệu đính kèm..."
+                    autoFocus
+                    style={{ fontSize: '0.88rem', lineHeight: 1.6 }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.82rem' }}
+                      onClick={handleSaveDescription}
+                      disabled={savingField}
+                    >
+                      💾 Lưu mô tả
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.82rem' }}
+                      onClick={() => setIsEditingDesc(false)}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="task-desc-preview"
+                  onClick={() => canEdit && (setDescDraft(task.description || ''), setIsEditingDesc(true))}
+                  style={{
+                    cursor: canEdit ? 'pointer' : 'default',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-elevated)',
+                    border: canEdit ? '1px dashed var(--border)' : '1px solid var(--border)',
+                    minHeight: '60px',
+                    color: task.description ? 'var(--text-secondary)' : 'var(--text-muted)',
+                    fontStyle: task.description ? 'normal' : 'italic',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    fontSize: '0.88rem',
+                  }}
+                  title={canEdit ? 'Bấm để chỉnh sửa mô tả' : undefined}
+                >
+                  {task.description || (canEdit ? 'Chưa có mô tả chi tiết. Bấm vào đây để thêm mô tả cho nhiệm vụ...' : 'Chưa có mô tả chi tiết.')}
+                </div>
+              )}
+            </div>
 
             {/* Tabs */}
             <div className="task-detail-tabs">
@@ -181,14 +391,16 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
                         <span className="comment-time">
                           {new Date(c.createdAt).toLocaleString('vi-VN')}
                         </span>
-                        <div className="comment-actions">
-                          <button
-                            className="btn-icon-xs"
-                            onClick={() => { setEditingComment(c.id); setEditContent(c.content); }}
-                            title="Sửa"
-                          >✏️</button>
-                          <button className="btn-icon-xs" onClick={() => handleDeleteComment(c)} title="Xóa">🗑️</button>
-                        </div>
+                        {canEdit && (
+                          <div className="comment-actions">
+                            <button
+                              className="btn-icon-xs"
+                              onClick={() => { setEditingComment(c.id); setEditContent(c.content); }}
+                              title="Sửa"
+                            >✏️</button>
+                            <button className="btn-icon-xs" onClick={() => setCommentToDelete(c)} title="Xóa">🗑️</button>
+                          </div>
+                        )}
                       </div>
                       {editingComment === c.id ? (
                         <div>
@@ -262,12 +474,14 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
           {/* Right panel: properties */}
           <div className="task-detail-right">
             <div className="task-detail-props">
+              {/* Trạng thái */}
               <div className="task-prop">
                 <span className="task-prop-label">Trạng thái</span>
                 <select
                   className="form-input"
                   value={task.status}
-                  onChange={e => handleStatusChange(e.target.value)}
+                  disabled={!canEdit}
+                  onChange={e => handleUpdateTaskField({ status: e.target.value }, 'Đã cập nhật trạng thái')}
                   style={{ fontSize: '0.85rem' }}
                 >
                   {STATUS_COLUMNS.map(s => (
@@ -276,42 +490,135 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
                 </select>
               </div>
 
+              {/* Ưu tiên */}
               <div className="task-prop">
-                <span className="task-prop-label">Ưu tiên</span>
-                <span
-                  className="priority-badge"
-                  style={{ '--p-color': prio.color, '--p-bg': prio.bg }}
+                <span className="task-prop-label">Độ ưu tiên</span>
+                <select
+                  className="form-input"
+                  value={task.priority || 'medium'}
+                  disabled={!canEdit}
+                  onChange={e => handleUpdateTaskField({ priority: e.target.value }, 'Đã đổi mức ưu tiên')}
+                  style={{ fontSize: '0.85rem' }}
                 >
-                  {prio.label}
-                </span>
+                  <option value="low">🟢 Low (Thấp)</option>
+                  <option value="medium">🔵 Medium (Bình thường)</option>
+                  <option value="high">🟠 High (Cao)</option>
+                  <option value="urgent">🔴 Urgent (Khẩn cấp)</option>
+                </select>
               </div>
 
-              {task.due_date && (
-                <div className="task-prop">
-                  <span className="task-prop-label">Deadline</span>
-                  <span style={{
-                    color: new Date(task.due_date) < new Date() && task.status !== 'done'
-                      ? '#ef4444' : 'var(--text-secondary)',
-                    fontSize: '0.85rem',
-                  }}>
-                    📅 {new Date(task.due_date).toLocaleDateString('vi-VN')}
-                  </span>
-                </div>
-              )}
+              {/* Sprint */}
+              <div className="task-prop">
+                <span className="task-prop-label">Sprint</span>
+                <select
+                  className="form-input"
+                  value={task.sprint_id || ''}
+                  disabled={!canEdit}
+                  onChange={e => {
+                    const nextSprintId = e.target.value ? parseInt(e.target.value, 10) : null;
+                    handleUpdateTaskField(
+                      { sprint_id: nextSprintId },
+                      nextSprintId ? 'Đã gán vào Sprint' : 'Đã đưa về Backlog'
+                    );
+                  }}
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  <option value="">📦 Backlog (Không sprint)</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.status === 'active' ? '🟢' : s.status === 'completed' ? '🏁' : '📋'} {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              {task.story_points && (
-                <div className="task-prop">
-                  <span className="task-prop-label">Story Points</span>
-                  <span className="sp-badge">{task.story_points} SP</span>
+              {/* Deadline */}
+              <div className="task-prop">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="task-prop-label" style={{ marginBottom: 0 }}>Hạn chót (Deadline)</span>
+                  {canEdit && task.due_date && (
+                    <button
+                      type="button"
+                      className="btn-link-sm"
+                      onClick={() => handleUpdateTaskField({ due_date: null }, 'Đã xóa deadline')}
+                      style={{ fontSize: '0.72rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      title="Xóa hạn chót"
+                    >
+                      ✕ Xóa
+                    </button>
+                  )}
                 </div>
-              )}
+                <input
+                  type="date"
+                  className="form-input"
+                  value={task.due_date ? String(task.due_date).slice(0, 10) : ''}
+                  disabled={!canEdit}
+                  onChange={e => handleUpdateTaskField({ due_date: e.target.value || null }, 'Đã cập nhật deadline')}
+                  style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}
+                />
+              </div>
 
+              {/* Story Points */}
+              <div className="task-prop">
+                <span className="task-prop-label">Story Points</span>
+                <select
+                  className="form-input"
+                  value={task.story_points ?? ''}
+                  disabled={!canEdit}
+                  onChange={e => {
+                    if (!canEdit) return;
+                    const raw = e.target.value ? parseInt(e.target.value, 10) : null;
+                    handleUpdateTaskField({ story_points: raw }, 'Đã cập nhật Story Points');
+                  }}
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  <option value="">— Chưa ước tính —</option>
+                  {[1, 2, 3, 5, 8, 13].map(sp => (
+                    <option key={sp} value={sp}>🎯 {sp} SP</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Thời gian thực hiện (Giờ bắt đầu - Giờ kết thúc) */}
+              <div className="task-prop">
+                <span className="task-prop-label">Giờ thực hiện</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Bắt đầu</span>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={task.start_time ? String(task.start_time).slice(0, 5) : ''}
+                      disabled={!canEdit}
+                      onChange={e => handleUpdateTaskField({ start_time: e.target.value || null }, 'Đã cập nhật giờ bắt đầu')}
+                      style={{ fontSize: '0.82rem' }}
+                    />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kết thúc</span>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={task.end_time ? String(task.end_time).slice(0, 5) : ''}
+                      disabled={!canEdit}
+                      onChange={e => handleUpdateTaskField({ end_time: e.target.value || null }, 'Đã cập nhật giờ kết thúc')}
+                      style={{ fontSize: '0.82rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Người thực hiện (Assignee) */}
               <div className="task-prop">
                 <span className="task-prop-label">Người thực hiện</span>
                 <select
                   className="form-input"
                   value={task.assignee_id || ''}
-                  onChange={e => handleAssigneeChange(e.target.value || null)}
+                  disabled={!canEdit}
+                  onChange={e => {
+                    const nextUserId = e.target.value ? parseInt(e.target.value, 10) : null;
+                    handleUpdateTaskField({ assignee_id: nextUserId }, 'Đã phân công người thực hiện');
+                  }}
                   style={{ fontSize: '0.85rem' }}
                 >
                   <option value="">— Chưa gán —</option>
@@ -320,13 +627,6 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
                   ))}
                 </select>
               </div>
-
-              {task.Sprint && (
-                <div className="task-prop">
-                  <span className="task-prop-label">Sprint</span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>🏃 {task.Sprint.name}</span>
-                </div>
-              )}
 
               {task.assignee && (
                 <div className="task-prop">
@@ -342,16 +642,76 @@ function TaskDetailModal({ task, onClose, onUpdate, projectMembers }) {
                   </div>
                 </div>
               )}
+
+              {/* Delete Task Action (Hidden for viewers) */}
+              {canEdit && (
+                <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setShowDeleteModal(true)}
+                    style={{
+                      width: '100%',
+                      color: '#ef4444',
+                      justifyContent: 'center',
+                      fontSize: '0.82rem',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      background: 'rgba(239, 68, 68, 0.05)',
+                    }}
+                    title="Xóa vĩnh viễn nhiệm vụ này"
+                  >
+                    🗑️ Xóa nhiệm vụ này
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Delete Task Confirm Modal */}
+        {showDeleteModal && (
+          <ConfirmModal
+            isOpen={showDeleteModal}
+            title="Xác nhận xóa nhiệm vụ"
+            message={`Bạn có chắc muốn xóa nhiệm vụ "${task.title}"?\nHành động này không thể hoàn tác.`}
+            confirmText="🗑️ Xóa nhiệm vụ"
+            cancelText="Hủy bỏ"
+            variant="danger"
+            icon="🗑️"
+            onConfirm={confirmDeleteTask}
+            onClose={() => setShowDeleteModal(false)}
+          />
+        )}
+
+        {/* Delete Comment Confirm Modal */}
+        {commentToDelete && (
+          <ConfirmModal
+            isOpen={!!commentToDelete}
+            title="Xác nhận xóa bình luận"
+            message="Bạn có chắc chắn muốn xóa bình luận này không?"
+            confirmText="Xóa bình luận"
+            cancelText="Hủy bỏ"
+            variant="danger"
+            icon="💬"
+            onConfirm={confirmDeleteComment}
+            onClose={() => setCommentToDelete(null)}
+          />
+        )}
+
+        {/* Task Edit History Modal */}
+        {showHistoryModal && (
+          <TaskHistoryModal
+            taskId={task.id}
+            onClose={() => setShowHistoryModal(false)}
+          />
+        )}
       </div>
     </div>
   );
 }
 
 // ── Kanban Card ────────────────────────────────────────────────
-function KanbanCard({ task, onDragStart, onClick }) {
+function KanbanCard({ task, onDragStart, onClick, canEdit = true }) {
   const prio = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
   const initials = (user) => user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -359,9 +719,10 @@ function KanbanCard({ task, onDragStart, onClick }) {
   return (
     <div
       className="kanban-card"
-      draggable
-      onDragStart={e => onDragStart(e, task)}
+      draggable={canEdit}
+      onDragStart={canEdit ? (e => onDragStart(e, task)) : undefined}
       onClick={() => onClick(task)}
+      style={{ cursor: canEdit ? 'grab' : 'pointer' }}
     >
       {task.Category && (
         <div className="kanban-card-tag" style={{ '--cat-color': task.Category.color }}>
@@ -373,12 +734,27 @@ function KanbanCard({ task, onDragStart, onClick }) {
         <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="priority-dot" style={{ '--p-color': prio.color }} title={prio.label} />
           {task.due_date && (
-            <span className={`due-badge ${isOverdue ? 'overdue' : ''}`}>
+            <span className={`due-badge ${isOverdue ? 'overdue' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
               📅 {new Date(task.due_date).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })}
+              {task.is_edited && (
+                <span style={{ color: '#d97706', fontWeight: 700, fontSize: '0.68rem', marginLeft: '0.1rem' }} title="Đã chỉnh sửa">
+                  (Đã chỉnh sửa)
+                </span>
+              )}
+            </span>
+          )}
+          {!task.due_date && task.is_edited && (
+            <span style={{ color: '#d97706', fontWeight: 600, fontSize: '0.68rem', background: 'rgba(245, 158, 11, 0.12)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+              (Đã chỉnh sửa)
+            </span>
+          )}
+          {task.start_time && (
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              ⏰ {task.start_time.slice(0, 5)}{task.end_time ? `-${task.end_time.slice(0, 5)}` : ''}
             </span>
           )}
           {task.story_points && (
-            <span className="sp-badge-sm">{task.story_points}</span>
+            <span className="sp-badge-sm">{task.story_points} SP</span>
           )}
         </div>
         {task.assignee && (
@@ -395,15 +771,23 @@ function KanbanCard({ task, onDragStart, onClick }) {
 }
 
 // ── Kanban Column ──────────────────────────────────────────────
-function KanbanColumn({ col, tasks, onDragStart, onDrop, onCardClick }) {
+function KanbanColumn({ col, tasks, onDragStart, onDrop, onCardClick, canEdit = true }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   return (
     <div
       className={`kanban-column ${isDragOver ? 'drag-over' : ''}`}
-      onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+      onDragOver={e => {
+        if (!canEdit) return;
+        e.preventDefault();
+        setIsDragOver(true);
+      }}
       onDragLeave={() => setIsDragOver(false)}
-      onDrop={e => { setIsDragOver(false); onDrop(e, col.key); }}
+      onDrop={e => {
+        setIsDragOver(false);
+        if (!canEdit) return;
+        onDrop(e, col.key);
+      }}
     >
       <div className="kanban-column-header">
         <div className="kanban-col-title">
@@ -417,6 +801,7 @@ function KanbanColumn({ col, tasks, onDragStart, onDrop, onCardClick }) {
           <KanbanCard
             key={t.id}
             task={t}
+            canEdit={canEdit}
             onDragStart={onDragStart}
             onClick={onCardClick}
           />
@@ -433,17 +818,42 @@ function KanbanColumn({ col, tasks, onDragStart, onDrop, onCardClick }) {
 }
 
 // ── Board View ─────────────────────────────────────────────────
-function BoardView({ project, tasks, setTasks, projectMembers }) {
+function BoardView({ project, tasks, setTasks, sprints = [], setSprints, projectMembers, onSync, onSwitchToBacklog, canEdit = true, isViewer = false }) {
   const [draggedTask, setDraggedTask] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [sprintFilter, setSprintFilter] = useState('active'); // 'active' | 'all' | 'backlog' | sprintId
+  const [syncing, setSyncing] = useState(false);
+
+  const activeSprint = sprints.find(s => s.status === 'active');
+
+  // Filter tasks based on current sprint view
+  const currentSprint = sprintFilter === 'active'
+    ? activeSprint
+    : sprintFilter === 'all' || sprintFilter === 'backlog'
+      ? null
+      : sprints.find(s => String(s.id) === String(sprintFilter));
+
+  const filteredTasks = tasks.filter(task => {
+    if (sprintFilter === 'active') {
+      return activeSprint ? task.sprint_id === activeSprint.id : true;
+    }
+    if (sprintFilter === 'all') return true;
+    if (sprintFilter === 'backlog') return !task.sprint_id;
+    return task.sprint_id === parseInt(sprintFilter, 10);
+  });
 
   const handleDragStart = (e, task) => {
+    if (!canEdit) return;
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDrop = async (e, newStatus) => {
     e.preventDefault();
+    if (!canEdit) {
+      toast.error('Bạn chỉ có quyền xem (Viewer), không thể di chuyển nhiệm vụ.');
+      return;
+    }
     if (!draggedTask || draggedTask.status === newStatus) return;
 
     const oldStatus = draggedTask.status;
@@ -459,52 +869,260 @@ function BoardView({ project, tasks, setTasks, projectMembers }) {
     setDraggedTask(null);
   };
 
+  const handleManualSync = async () => {
+    if (!onSync) return;
+    setSyncing(true);
+    try {
+      await onSync();
+      toast.success('🔄 Dữ liệu Board đã được đồng bộ mới nhất');
+    } catch {
+      toast.error('Đồng bộ dữ liệu thất bại');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDeleteTask = (taskId) => {
+    setTasks(ts => ts.filter(t => t.id !== taskId));
+    setSelectedTask(null);
+  };
+
   const grouped = STATUS_COLUMNS.reduce((acc, col) => {
-    acc[col.key] = tasks.filter(t => t.status === col.key);
+    acc[col.key] = filteredTasks.filter(t => t.status === col.key);
     return acc;
   }, {});
 
+  // Progress metrics for currently viewed sprint
+  const sprintTasks = currentSprint ? tasks.filter(t => t.sprint_id === currentSprint.id) : [];
+  const doneSprintTasks = sprintTasks.filter(t => t.status === 'done');
+  const sprintProgress = sprintTasks.length > 0 ? Math.round((doneSprintTasks.length / sprintTasks.length) * 100) : 0;
+  const sprintTotalSp = sprintTasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
+  const sprintDoneSp = doneSprintTasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
+
   return (
-    <div className="kanban-board">
-      {STATUS_COLUMNS.map(col => (
-        <KanbanColumn
-          key={col.key}
-          col={col}
-          tasks={grouped[col.key] || []}
-          onDragStart={handleDragStart}
-          onDrop={handleDrop}
-          onCardClick={task => setSelectedTask(task)}
-        />
-      ))}
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          projectMembers={projectMembers}
-          onClose={() => setSelectedTask(null)}
-          onUpdate={updated => {
-            setTasks(ts => ts.map(t => t.id === updated.id ? { ...t, ...updated } : t));
-            setSelectedTask(s => s ? { ...s, ...updated } : null);
-          }}
-        />
+    <div className="board-view-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '0.75rem' }}>
+      {/* Viewer Notice Banner */}
+      {isViewer && (
+        <div className="viewer-notice-banner" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          padding: '0.65rem 1.15rem',
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: 'var(--radius)',
+          fontSize: '0.84rem',
+          color: 'var(--text-secondary)'
+        }}>
+          <span style={{ fontSize: '1.15rem' }}>👁️</span>
+          <span><strong>Vai trò Người xem (Viewer):</strong> Bạn chỉ có quyền theo dõi bảng nhiệm vụ, không thể kéo thả di chuyển task sang Done hay chỉnh sửa nội dung.</span>
+        </div>
       )}
+
+      {/* Board Top Toolbar */}
+      <div className="board-toolbar" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        padding: '0.6rem 1rem',
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius)',
+        border: '1px solid var(--border)'
+      }}>
+        {/* Sprint View Filter Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            Hiển thị:
+          </span>
+          {activeSprint && (
+            <button
+              className={`btn ${sprintFilter === 'active' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              onClick={() => setSprintFilter('active')}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              Sprint hiện tại: {activeSprint.name}
+            </button>
+          )}
+          <button
+            className={`btn ${sprintFilter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+            onClick={() => setSprintFilter('all')}
+          >
+            📋 Tất cả ({tasks.length})
+          </button>
+          <button
+            className={`btn ${sprintFilter === 'backlog' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+            onClick={() => setSprintFilter('backlog')}
+          >
+            📦 Chỉ Backlog ({tasks.filter(t => !t.sprint_id).length})
+          </button>
+
+          {sprints.length > 0 && (
+            <select
+              className="form-input"
+              value={['active', 'all', 'backlog'].includes(sprintFilter) ? '' : sprintFilter}
+              onChange={e => { if (e.target.value) setSprintFilter(e.target.value); }}
+              style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', width: 'auto' }}
+            >
+              <option value="" disabled>— Chọn Sprint khác —</option>
+              {sprints.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.status === 'active' ? '🟢' : s.status === 'completed' ? '🏁' : '📋'} {s.name} ({tasks.filter(t => t.sprint_id === s.id).length} tasks)
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            onClick={handleManualSync}
+            disabled={syncing}
+            title="Đồng bộ dữ liệu tasks và sprints từ server"
+          >
+            <span style={{ display: 'inline-block', transform: syncing ? 'rotate(360deg)' : 'none', transition: 'transform 0.5s linear' }}>🔄</span>
+            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
+          </button>
+          {onSwitchToBacklog && (
+            <button
+              className="btn btn-ghost"
+              style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+              onClick={onSwitchToBacklog}
+            >
+              📦 Quản lý Backlog
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Active / Current Sprint Banner */}
+      {currentSprint && (
+        <div className="board-sprint-banner" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          padding: '0.85rem 1.25rem',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
+          borderRadius: 'var(--radius)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>🏃</span>
+              <strong style={{ fontSize: '0.95rem' }}>{currentSprint.name}</strong>
+              <span className={`sprint-status-badge sprint-${currentSprint.status}`}>
+                {currentSprint.status === 'active' ? '🟢 Đang diễn ra' : currentSprint.status === 'completed' ? '🏁 Đã xong' : '📋 Kế hoạch'}
+              </span>
+            </div>
+            {currentSprint.goal && (
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                🎯 Mục tiêu: {currentSprint.goal}
+              </p>
+            )}
+            {(currentSprint.start_date || currentSprint.end_date) && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                📅 {currentSprint.start_date ? new Date(currentSprint.start_date).toLocaleDateString('vi-VN') : '...'} → {currentSprint.end_date ? new Date(currentSprint.end_date).toLocaleDateString('vi-VN') : '...'}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', minWidth: '220px' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.3rem', color: 'var(--text-muted)' }}>
+                <span>Tiến độ: {sprintProgress}%</span>
+                <span>{doneSprintTasks.length}/{sprintTasks.length} tasks ({sprintDoneSp}/{sprintTotalSp} SP)</span>
+              </div>
+              <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${sprintProgress}%`,
+                  background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                  borderRadius: 99,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kanban Board Grid */}
+      <div className="kanban-board" style={{ flex: 1 }}>
+        {STATUS_COLUMNS.map(col => (
+          <KanbanColumn
+            key={col.key}
+            col={col}
+            tasks={grouped[col.key] || []}
+            canEdit={canEdit}
+            onDragStart={handleDragStart}
+            onDrop={handleDrop}
+            onCardClick={task => setSelectedTask(task)}
+          />
+        ))}
+        {selectedTask && (
+          <TaskDetailModal
+            task={selectedTask}
+            projectMembers={projectMembers}
+            sprints={sprints}
+            canEdit={canEdit}
+            onClose={() => setSelectedTask(null)}
+            onUpdate={updated => {
+              setTasks(ts => ts.map(t => t.id === updated.id ? { ...t, ...updated } : t));
+              setSelectedTask(s => s ? { ...s, ...updated } : null);
+            }}
+            onDelete={handleDeleteTask}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Backlog View ───────────────────────────────────────────────
-function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSprintCreated }) {
+// ── Backlog View (Flexible Sprint Management & Confirmation Sync) ──
+function BacklogView({ project, tasks, setTasks, sprints, setSprints, projectMembers, onSprintCreated, onSync, onSwitchToBoard, canEdit = true, isViewer = false }) {
   const [showSprintModal, setShowSprintModal] = useState(false);
   const [sprintForm, setSprintForm] = useState({ name: '', goal: '', start_date: '', end_date: '' });
+  const [editingSprint, setEditingSprint] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [sprintConfirmAction, setSprintConfirmAction] = useState(null);
 
   const backlog = tasks.filter(t => !t.sprint_id);
+  const backlogSp = backlog.reduce((sum, t) => sum + (t.story_points || 0), 0);
+
   const sprintTasks = sprints.map(s => ({
     sprint: s,
     tasks: tasks.filter(t => t.sprint_id === s.id),
   }));
 
+  const handleManualSync = async () => {
+    if (!onSync) return;
+    setSyncing(true);
+    try {
+      await onSync();
+      toast.success('🔄 Đã đồng bộ dữ liệu Backlog & Sprints');
+    } catch {
+      toast.error('Đồng bộ thất bại');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCreateSprint = async (e) => {
     e.preventDefault();
+    if (!canEdit) {
+      toast.error('Bạn chỉ có quyền xem (Viewer), không thể tạo Sprint mới.');
+      return;
+    }
     try {
       const payload = {
         name: sprintForm.name.trim(),
@@ -513,16 +1131,117 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
         end_date: sprintForm.end_date || null,
       };
       const { data } = await projectService.createSprint(project.id, payload);
-      toast.success('Tạo Sprint thành công!');
-      onSprintCreated(data.data.sprint);
+      toast.success(`🎉 Đã tạo Sprint "${data.data.sprint.name}"!`);
+      if (onSprintCreated) onSprintCreated(data.data.sprint);
       setShowSprintModal(false);
       setSprintForm({ name: '', goal: '', start_date: '', end_date: '' });
+      if (onSync) onSync();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Tạo sprint thất bại');
     }
   };
 
+  const handleUpdateSprint = async (e) => {
+    e.preventDefault();
+    if (!editingSprint) return;
+    if (!canEdit) {
+      toast.error('Bạn chỉ có quyền xem (Viewer), không thể chỉnh sửa Sprint.');
+      return;
+    }
+    try {
+      const payload = {
+        name: editingSprint.name.trim(),
+        goal: editingSprint.goal?.trim() || null,
+        start_date: editingSprint.start_date || null,
+        end_date: editingSprint.end_date || null,
+        status: editingSprint.status,
+      };
+      const { data } = await projectService.updateSprint(project.id, editingSprint.id, payload);
+      setSprints(ss => ss.map(s => s.id === editingSprint.id ? data.data.sprint : s));
+      toast.success(`Đã cập nhật Sprint "${data.data.sprint.name}"`);
+      setEditingSprint(null);
+      if (onSync) onSync();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Cập nhật sprint thất bại');
+    }
+  };
+
+  // Accept / Start Sprint: Prompts confirmation, marks active, syncs to board
+  const handleStartSprint = (sprint) => {
+    const sTasks = tasks.filter(t => t.sprint_id === sprint.id);
+    const spTotal = sTasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
+    setSprintConfirmAction({
+      type: 'start',
+      sprint,
+      title: `Bắt đầu Sprint "${sprint.name}"`,
+      message: `Bạn có chắc muốn kích hoạt Sprint "${sprint.name}"?\n• Số nhiệm vụ: ${sTasks.length}\n• Tổng Story Points: ${spTotal} SP\nSprint sẽ chuyển sang trạng thái "Đang diễn ra" và đồng bộ lên Board.`,
+      confirmText: 'Bắt đầu Sprint',
+      variant: 'primary',
+      icon: '🚀',
+    });
+  };
+
+  // Complete Sprint: Prompts confirmation, moves unfinished to backlog, marks completed
+  const handleCompleteSprint = (sprint) => {
+    const sTasks = tasks.filter(t => t.sprint_id === sprint.id);
+    const doneTasks = sTasks.filter(t => t.status === 'done');
+    const unfinishedTasks = sTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled');
+    setSprintConfirmAction({
+      type: 'complete',
+      sprint,
+      title: `Hoàn thành Sprint "${sprint.name}"`,
+      message: `Bạn có chắc muốn kết thúc Sprint này?\n• Đã hoàn thành: ${doneTasks.length}/${sTasks.length} nhiệm vụ\n• Còn lại: ${unfinishedTasks.length} nhiệm vụ chưa xong sẽ tự động chuyển về Backlog.`,
+      confirmText: 'Hoàn thành & Đồng bộ',
+      variant: 'success',
+      icon: '🏁',
+    });
+  };
+
+  // Delete Sprint
+  const handleDeleteSprint = (sprint) => {
+    setSprintConfirmAction({
+      type: 'delete',
+      sprint,
+      title: `Xác nhận xóa Sprint "${sprint.name}"`,
+      message: `Bạn có chắc muốn xóa Sprint "${sprint.name}" không?\nTất cả nhiệm vụ trong sprint này sẽ được tự động hoàn trả về Backlog.`,
+      confirmText: 'Xóa Sprint',
+      variant: 'danger',
+      icon: '🗑️',
+    });
+  };
+
+  const handleExecuteSprintConfirm = async () => {
+    if (!sprintConfirmAction) return;
+    const { type, sprint } = sprintConfirmAction;
+    try {
+      if (type === 'start') {
+        const { data } = await projectService.updateSprint(project.id, sprint.id, { status: 'active' });
+        setSprints(ss => ss.map(s => s.id === sprint.id ? data.data.sprint : s));
+        toast.success(`🚀 Đã kích hoạt Sprint "${sprint.name}"!`);
+        if (onSync) onSync();
+      } else if (type === 'complete') {
+        const { data } = await projectService.updateSprint(project.id, sprint.id, { status: 'completed' });
+        setSprints(ss => ss.map(s => s.id === sprint.id ? data.data.sprint : s));
+        toast.success(`🏁 Đã hoàn thành Sprint "${sprint.name}"! Dữ liệu đã đồng bộ.`);
+        if (onSync) onSync();
+      } else if (type === 'delete') {
+        await projectService.removeSprint(project.id, sprint.id);
+        setSprints(ss => ss.filter(s => s.id !== sprint.id));
+        toast.success(`Đã xóa Sprint "${sprint.name}" và chuyển các tasks về Backlog.`);
+        if (onSync) onSync();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Thao tác thất bại');
+    } finally {
+      setSprintConfirmAction(null);
+    }
+  };
+
   const handleMoveToSprint = async (taskId, sprintId) => {
+    if (!canEdit) {
+      toast.error('Bạn chỉ có quyền xem (Viewer), không thể di chuyển nhiệm vụ.');
+      return;
+    }
     try {
       await api.put(`/tasks/${taskId}`, { sprint_id: sprintId || null });
       setTasks(ts => ts.map(t => t.id === taskId ? { ...t, sprint_id: sprintId } : t));
@@ -530,6 +1249,11 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
     } catch {
       toast.error('Cập nhật thất bại');
     }
+  };
+
+  const handleDeleteTask = (taskId) => {
+    setTasks(ts => ts.filter(t => t.id !== taskId));
+    setSelectedTask(null);
   };
 
   const renderTaskRow = (task) => (
@@ -540,6 +1264,9 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
         {task.Category && (
           <span className="task-category-badge" style={{ '--cat-color': task.Category.color }}>{task.Category.name}</span>
         )}
+        <span style={{ fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.25rem' }}>
+          {STATUS_COLUMNS.find(s => s.key === task.status)?.icon}
+        </span>
       </div>
       <div className="backlog-task-right">
         {task.story_points && <span className="sp-badge-sm">{task.story_points} SP</span>}
@@ -549,62 +1276,232 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
           </div>
         )}
         <select
-          className="sprint-move-select"
+          className="sprint-move-select form-input"
           value={task.sprint_id || ''}
-          onChange={e => { e.stopPropagation(); handleMoveToSprint(task.id, e.target.value || null); }}
+          disabled={!canEdit}
+          onChange={e => { e.stopPropagation(); handleMoveToSprint(task.id, e.target.value ? parseInt(e.target.value, 10) : null); }}
           onClick={e => e.stopPropagation()}
+          style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem', height: 'auto', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.65 }}
         >
-          <option value="">Backlog</option>
-          {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <option value="">📦 Backlog</option>
+          {sprints.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.status === 'active' ? '🟢' : s.status === 'completed' ? '🏁' : '📋'} {s.name}
+            </option>
+          ))}
         </select>
       </div>
     </div>
   );
 
   return (
-    <div className="backlog-view">
-      {/* Active Sprints */}
-      {sprintTasks.map(({ sprint, tasks: stasks }) => (
-        <div key={sprint.id} className="backlog-sprint-section">
-          <div className="backlog-sprint-header">
-            <div>
-              <h3>🏃 {sprint.name}</h3>
-              {sprint.goal && <p className="sprint-goal">{sprint.goal}</p>}
-              <div className="sprint-meta">
-                <span>{sprint.start_date} → {sprint.end_date}</span>
-                <span className={`sprint-status-badge sprint-${sprint.status}`}>{sprint.status}</span>
-              </div>
-            </div>
-            <span className="sprint-task-count">{stasks.length} tasks</span>
-          </div>
-          <div className="backlog-task-list">
-            {stasks.map(renderTaskRow)}
-            {stasks.length === 0 && (
-              <div className="backlog-empty-sprint">Kéo tasks vào sprint này từ Backlog bên dưới</div>
-            )}
-          </div>
+    <div className="backlog-view" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem 1.25rem', height: '100%', overflowY: 'auto' }}>
+      {/* Viewer Notice Banner */}
+      {isViewer && (
+        <div className="viewer-notice-banner" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          padding: '0.65rem 1.15rem',
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: 'var(--radius)',
+          fontSize: '0.84rem',
+          color: 'var(--text-secondary)'
+        }}>
+          <span style={{ fontSize: '1.15rem' }}>👁️</span>
+          <span><strong>Vai trò Người xem (Viewer):</strong> Bạn chỉ có quyền theo dõi danh sách Backlog & Sprint, không thể tạo mới, chỉnh sửa sprint hay di chuyển nhiệm vụ.</span>
         </div>
-      ))}
+      )}
 
-      {/* Create Sprint Button */}
-      <button className="btn btn-ghost create-sprint-btn" onClick={() => setShowSprintModal(true)}>
-        ➕ Tạo Sprint mới
-      </button>
-
-      {/* Backlog */}
-      <div className="backlog-sprint-section">
-        <div className="backlog-sprint-header">
-          <h3>📦 Backlog ({backlog.length})</h3>
+      {/* Top Backlog Toolbar */}
+      <div className="backlog-toolbar" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        padding: '0.75rem 1.25rem',
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius)',
+        border: '1px solid var(--border)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {canEdit && (
+            <button className="btn btn-primary" onClick={() => setShowSprintModal(true)} style={{ fontSize: '0.85rem' }}>
+              ➕ Tạo Sprint mới
+            </button>
+          )}
         </div>
-        <div className="backlog-task-list">
-          {backlog.map(renderTaskRow)}
-          {backlog.length === 0 && (
-            <div className="backlog-empty-sprint">Tất cả tasks đã được đưa vào sprint 🎉</div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            className="btn btn-ghost"
+            onClick={handleManualSync}
+            disabled={syncing}
+            style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Đồng bộ lại danh sách Sprint và Backlog"
+          >
+            <span style={{ display: 'inline-block', transform: syncing ? 'rotate(360deg)' : 'none', transition: 'transform 0.5s linear' }}>🔄</span>
+            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+          </button>
+          {onSwitchToBoard && (
+            <button
+              className="btn btn-ghost"
+              onClick={onSwitchToBoard}
+              style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              🗂️ Xem trên Board
+            </button>
           )}
         </div>
       </div>
 
-      {/* Sprint Create Modal */}
+      {/* Sprints List */}
+      {sprintTasks.map(({ sprint, tasks: stasks }) => {
+        const totalSp = stasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
+        const doneCount = stasks.filter(t => t.status === 'done').length;
+
+        return (
+          <div key={sprint.id} className="backlog-sprint-section">
+            <div className="backlog-sprint-header">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>🏃 {sprint.name}</h3>
+                  <span className={`sprint-status-badge sprint-${sprint.status}`}>
+                    {sprint.status === 'active' ? '🟢 Đang diễn ra' : sprint.status === 'completed' ? '🏁 Đã hoàn thành' : '📋 Kế hoạch'}
+                  </span>
+                  <span className="sprint-task-count" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {stasks.length} tasks • {totalSp} SP {doneCount > 0 && `(${doneCount} xong)`}
+                  </span>
+                </div>
+
+                {sprint.goal && <p className="sprint-goal" style={{ marginTop: '0.3rem', marginBottom: 0 }}>🎯 {sprint.goal}</p>}
+
+                <div className="sprint-meta">
+                  {(sprint.start_date || sprint.end_date) && (
+                    <span>
+                      📅 {sprint.start_date ? new Date(sprint.start_date).toLocaleDateString('vi-VN') : 'Chưa đặt'} → {sprint.end_date ? new Date(sprint.end_date).toLocaleDateString('vi-VN') : 'Chưa đặt'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Sprint Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {/* Accept / Start Sprint Button */}
+                {sprint.status === 'planning' && canEdit && (
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      fontSize: '0.8rem',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderColor: '#059669',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontWeight: 600,
+                    }}
+                    onClick={() => handleStartSprint(sprint)}
+                    title="Xác nhận phạm vi sprint và kích hoạt đồng bộ lên Board"
+                  >
+                    🚀 Bắt đầu / Xác nhận Sprint
+                  </button>
+                )}
+
+                {/* Complete Sprint Button */}
+                {sprint.status === 'active' && (
+                  <>
+                    {canEdit && (
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '0.35rem 0.85rem',
+                          fontSize: '0.8rem',
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontWeight: 600,
+                        }}
+                        onClick={() => handleCompleteSprint(sprint)}
+                        title="Hoàn tất sprint này, tasks chưa xong sẽ quay lại Backlog"
+                      >
+                        🏁 Hoàn thành Sprint
+                      </button>
+                    )}
+                    {onSwitchToBoard && (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={onSwitchToBoard}
+                      >
+                        🗂️ Mở trên Board
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Edit & Delete Sprint */}
+                {canEdit && (
+                  <>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+                      onClick={() => setEditingSprint(sprint)}
+                      title="Chỉnh sửa thông tin Sprint"
+                    >
+                      ✏️ Sửa
+                    </button>
+
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', color: '#ef4444' }}
+                      onClick={() => handleDeleteSprint(sprint)}
+                      title="Xóa Sprint này (tasks sẽ trở về Backlog)"
+                    >
+                      🗑️
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="backlog-task-list">
+              {stasks.map(renderTaskRow)}
+              {stasks.length === 0 && (
+                <div className="backlog-empty-sprint">
+                  Kéo hoặc chọn tasks từ Backlog bên dưới để thêm vào Sprint này 📦
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Backlog Section */}
+      <div className="backlog-sprint-section">
+        <div className="backlog-sprint-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>📦 Backlog</h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              ({backlog.length} tasks • {backlogSp} SP)
+            </span>
+          </div>
+        </div>
+        <div className="backlog-task-list">
+          {backlog.map(renderTaskRow)}
+          {backlog.length === 0 && (
+            <div className="backlog-empty-sprint">
+              Tất cả nhiệm vụ đã được phân bổ vào các Sprints 🎉
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Sprint Modal */}
       {showSprintModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSprintModal(false)}>
           <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 480px)' }}>
@@ -616,24 +1513,42 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div className="form-group">
                   <label className="form-label">Tên Sprint *</label>
-                  <input className="form-input" placeholder="Sprint 1" value={sprintForm.name}
-                    onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} required autoFocus />
+                  <input
+                    className="form-input"
+                    placeholder="Sprint 1, Sprint MVP..."
+                    value={sprintForm.name}
+                    onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))}
+                    required
+                    autoFocus
+                  />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Mục tiêu Sprint</label>
-                  <input className="form-input" placeholder="Mô tả mục tiêu..." value={sprintForm.goal}
-                    onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} />
+                  <label className="form-label">Mục tiêu Sprint (Goal)</label>
+                  <input
+                    className="form-input"
+                    placeholder="Mục tiêu cốt lõi cần đạt được trong đợt này..."
+                    value={sprintForm.goal}
+                    onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))}
+                  />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div className="form-group">
                     <label className="form-label">Ngày bắt đầu</label>
-                    <input type="date" className="form-input" value={sprintForm.start_date}
-                      onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} />
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={sprintForm.start_date}
+                      onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Ngày kết thúc</label>
-                    <input type="date" className="form-input" value={sprintForm.end_date}
-                      onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} />
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={sprintForm.end_date}
+                      onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -646,15 +1561,103 @@ function BacklogView({ project, tasks, setTasks, sprints, projectMembers, onSpri
         </div>
       )}
 
+      {/* Edit Sprint Modal */}
+      {editingSprint && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingSprint(null)}>
+          <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 480px)' }}>
+            <div className="modal-header">
+              <h3>✏️ Chỉnh sửa Sprint</h3>
+              <button className="btn-icon" onClick={() => setEditingSprint(null)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateSprint}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Tên Sprint *</label>
+                  <input
+                    className="form-input"
+                    value={editingSprint.name || ''}
+                    onChange={e => setEditingSprint(s => ({ ...s, name: e.target.value }))}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Mục tiêu Sprint</label>
+                  <input
+                    className="form-input"
+                    value={editingSprint.goal || ''}
+                    onChange={e => setEditingSprint(s => ({ ...s, goal: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Trạng thái Sprint</label>
+                  <select
+                    className="form-input"
+                    value={editingSprint.status || 'planning'}
+                    onChange={e => setEditingSprint(s => ({ ...s, status: e.target.value }))}
+                  >
+                    <option value="planning">📋 Kế hoạch (Planning)</option>
+                    <option value="active">🟢 Đang diễn ra (Active)</option>
+                    <option value="completed">🏁 Đã hoàn thành (Completed)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Ngày bắt đầu</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editingSprint.start_date ? String(editingSprint.start_date).slice(0, 10) : ''}
+                      onChange={e => setEditingSprint(s => ({ ...s, start_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Ngày kết thúc</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editingSprint.end_date ? String(editingSprint.end_date).slice(0, 10) : ''}
+                      onChange={e => setEditingSprint(s => ({ ...s, end_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setEditingSprint(null)}>Hủy</button>
+                <button type="submit" className="btn btn-primary">💾 Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sprint Action Confirm Modal */}
+      {sprintConfirmAction && (
+        <ConfirmModal
+          isOpen={!!sprintConfirmAction}
+          title={sprintConfirmAction.title}
+          message={sprintConfirmAction.message}
+          confirmText={sprintConfirmAction.confirmText}
+          cancelText="Hủy bỏ"
+          variant={sprintConfirmAction.variant}
+          icon={sprintConfirmAction.icon}
+          onConfirm={handleExecuteSprintConfirm}
+          onClose={() => setSprintConfirmAction(null)}
+        />
+      )}
+
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
           projectMembers={projectMembers}
+          sprints={sprints}
+          canEdit={canEdit}
           onClose={() => setSelectedTask(null)}
           onUpdate={updated => {
             setTasks(ts => ts.map(t => t.id === updated.id ? { ...t, ...updated } : t));
             setSelectedTask(s => s ? { ...s, ...updated } : null);
           }}
+          onDelete={handleDeleteTask}
         />
       )}
     </div>
@@ -1566,13 +2569,37 @@ function ActivityFeedPanel({ projectId }) {
   );
 }
 
-// ── Create Task Modal for Project ─────────────────────────────
-function CreateTaskModal({ project, projectMembers, sprints, onClose, onCreated }) {
+// ── Create Task Modal for Project (With Quick Sprint Creation) ──
+function CreateTaskModal({ project, projectMembers, sprints, onSprintCreated, onClose, onCreated }) {
   const [form, setForm] = useState({
     title: '', description: '', priority: 'medium',
-    due_date: '', story_points: '', assignee_id: '', sprint_id: '',
+    due_date: '', start_time: '', end_time: '', story_points: '', assignee_id: '', sprint_id: '',
   });
   const [saving, setSaving] = useState(false);
+  const [showQuickSprint, setShowQuickSprint] = useState(false);
+  const [quickSprintName, setQuickSprintName] = useState('');
+  const [quickCreating, setQuickCreating] = useState(false);
+
+  const handleQuickCreateSprint = async () => {
+    if (!quickSprintName.trim()) {
+      toast.error('Vui lòng nhập tên Sprint');
+      return;
+    }
+    setQuickCreating(true);
+    try {
+      const { data } = await projectService.createSprint(project.id, { name: quickSprintName.trim() });
+      const newSprint = data.data.sprint;
+      toast.success(`Đã tạo sprint "${newSprint.name}"`);
+      if (onSprintCreated) onSprintCreated(newSprint);
+      setForm(f => ({ ...f, sprint_id: String(newSprint.id) }));
+      setQuickSprintName('');
+      setShowQuickSprint(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Tạo sprint thất bại');
+    } finally {
+      setQuickCreating(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1584,6 +2611,8 @@ function CreateTaskModal({ project, projectMembers, sprints, onClose, onCreated 
         description: form.description?.trim() || null,
         priority: form.priority,
         due_date: form.due_date ? form.due_date : null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
         project_id: project.id,
         story_points: form.story_points ? parseInt(form.story_points, 10) : null,
         assignee_id: form.assignee_id ? parseInt(form.assignee_id, 10) : null,
@@ -1604,36 +2633,60 @@ function CreateTaskModal({ project, projectMembers, sprints, onClose, onCreated 
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 560px)' }}>
         <div className="modal-header">
-          <h3>➕ Tạo Task mới</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+            <span>➕</span>
+            <span>Tạo Task mới</span>
+          </h3>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div className="form-group">
               <label className="form-label">Tiêu đề *</label>
-              <input className="form-input" placeholder="Tên task..." value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required autoFocus />
+              <input
+                className="form-input"
+                placeholder="Tên nhiệm vụ cần thực hiện..."
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                required
+                autoFocus
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">Mô tả</label>
-              <textarea className="form-input" rows={3} placeholder="Chi tiết task..."
-                value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              <label className="form-label">Mô tả chi tiết</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="Yêu cầu kỹ thuật, tiêu chí hoàn thành, tài liệu đính kèm..."
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
               <div className="form-group">
-                <label className="form-label">Ưu tiên</label>
+                <label className="form-label">Độ ưu tiên</label>
                 <select className="form-input" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-                  <option value="low">🟢 Low</option>
-                  <option value="medium">🔵 Medium</option>
-                  <option value="high">🟠 High</option>
-                  <option value="urgent">🔴 Urgent</option>
+                  <option value="low">🟢 Low (Thấp)</option>
+                  <option value="medium">🔵 Medium (Bình thường)</option>
+                  <option value="high">🟠 High (Cao)</option>
+                  <option value="urgent">🔴 Urgent (Khẩn cấp)</option>
                 </select>
               </div>
+
               <div className="form-group">
                 <label className="form-label">Story Points</label>
-                <input type="number" className="form-input" placeholder="0" min={1} max={100}
-                  value={form.story_points} onChange={e => setForm(f => ({ ...f, story_points: e.target.value }))} />
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  value={form.story_points}
+                  onChange={e => setForm(f => ({ ...f, story_points: e.target.value }))}
+                />
               </div>
+
               <div className="form-group">
                 <label className="form-label">Người thực hiện</label>
                 <select className="form-input" value={form.assignee_id} onChange={e => setForm(f => ({ ...f, assignee_id: e.target.value }))}>
@@ -1643,17 +2696,97 @@ function CreateTaskModal({ project, projectMembers, sprints, onClose, onCreated 
                   ))}
                 </select>
               </div>
+
               <div className="form-group">
-                <label className="form-label">Sprint</label>
-                <select className="form-input" value={form.sprint_id} onChange={e => setForm(f => ({ ...f, sprint_id: e.target.value }))}>
-                  <option value="">Backlog</option>
-                  {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Sprint</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickSprint(v => !v)}
+                    style={{ fontSize: '0.74rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    {showQuickSprint ? '✕ Đóng' : '➕ Tạo Sprint'}
+                  </button>
+                </div>
+                <select
+                  className="form-input"
+                  value={form.sprint_id}
+                  onChange={e => setForm(f => ({ ...f, sprint_id: e.target.value }))}
+                  style={{ marginTop: '0.35rem' }}
+                >
+                  <option value="">📦 Backlog (Mặc định)</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.status === 'active' ? '🟢 [Đang chạy] ' : s.status === 'completed' ? '🏁 [Đã xong] ' : '📋 [Kế hoạch] '}
+                      {s.name}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {/* Inline Quick Sprint Creator */}
+              {showQuickSprint && (
+                <div style={{
+                  gridColumn: 'span 2',
+                  padding: '0.75rem',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px dashed var(--primary)',
+                }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--primary)' }}>
+                    🏃 Tạo Sprint nhanh và gán ngay vào task:
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      className="form-input"
+                      placeholder="Tên Sprint (VD: Sprint 1, Sprint MVP)..."
+                      value={quickSprintName}
+                      onChange={e => setQuickSprintName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickCreateSprint(); } }}
+                      style={{ fontSize: '0.82rem' }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleQuickCreateSprint}
+                      disabled={quickCreating}
+                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem', whiteSpace: 'nowrap' }}
+                    >
+                      {quickCreating ? '⏳...' : 'Tạo & Chọn'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label className="form-label">Deadline</label>
-                <input type="date" className="form-input" value={form.due_date}
-                  onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+                <label className="form-label">Ngày thực hiện (Hạn chót)</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={form.due_date}
+                  onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Giờ bắt đầu</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={form.start_time}
+                  onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Giờ kết thúc</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={form.end_time}
+                  onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
+                />
               </div>
             </div>
           </div>
@@ -1671,6 +2804,7 @@ function CreateTaskModal({ project, projectMembers, sprints, onClose, onCreated 
 
 // ── Main: Project Detail Page ──────────────────────────────────
 export default function ProjectDetailPage({ project: initialProject, onBack }) {
+  const { user: currentUser } = useAuth();
   const [project, setProject] = useState(initialProject);
   const [tasks, setTasks] = useState([]);
   const [sprints, setSprints] = useState([]);
@@ -1678,8 +2812,17 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
   const [loading, setLoading] = useState(true);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [detailTask, setDetailTask] = useState(null);
+  const [showDateHistoryModal, setShowDateHistoryModal] = useState(false);
+  const [historyTaskId, setHistoryTaskId] = useState(null);
 
   const projectMembers = project?.ProjectMembers || [];
+
+  // Determine user role and permissions
+  const isOwner = project?.owner_id === currentUser?.id || currentUser?.role === 'admin';
+  const memberRecord = projectMembers.find(m => m.user_id === currentUser?.id || m.user?.id === currentUser?.id);
+  const userRole = isOwner ? 'owner' : (memberRecord?.role || 'viewer');
+  const canEdit = isOwner || userRole === 'member';
+  const isViewer = !canEdit;
 
   const loadData = useCallback(async () => {
     if (!project?.id) return;
@@ -1701,6 +2844,11 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
   }, [project?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleDeleteTask = (taskId) => {
+    setTasks(ts => ts.filter(t => t.id !== taskId));
+    setDetailTask(null);
+  };
 
   const VIEWS = [
     { key: 'board', label: '🗂️ Board' },
@@ -1724,6 +2872,9 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
           <span className="project-breadcrumb-name" style={{ color: project.color }}>
             {project.icon} {project.name}
           </span>
+          <span className={`project-role-badge ${userRole}`}>
+            {isOwner ? '👑 Trưởng dự án (Toàn quyền)' : userRole === 'member' ? '⚡ Thành viên (Có quyền sửa)' : '👁️ Người xem (Chỉ xem)'}
+          </span>
         </div>
 
         <div className="project-header-actions">
@@ -1739,7 +2890,16 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
               </button>
             ))}
           </div>
-          {(activeView === 'board' || activeView === 'backlog') && (
+
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowDateHistoryModal(true)}
+            title="Xem lịch sử và công việc theo ngày của dự án"
+          >
+            📅 Lịch sử theo ngày
+          </button>
+
+          {canEdit && (activeView === 'board' || activeView === 'backlog') && (
             <button className="btn btn-primary" onClick={() => setShowCreateTask(true)}>
               ➕ Task
             </button>
@@ -1761,7 +2921,13 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
                 project={project}
                 tasks={tasks}
                 setTasks={setTasks}
+                sprints={sprints}
+                setSprints={setSprints}
                 projectMembers={projectMembers}
+                onSync={loadData}
+                onSwitchToBacklog={() => setActiveView('backlog')}
+                canEdit={canEdit}
+                isViewer={isViewer}
               />
             )}
             {activeView === 'backlog' && (
@@ -1770,8 +2936,13 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
                 tasks={tasks}
                 setTasks={setTasks}
                 sprints={sprints}
+                setSprints={setSprints}
                 projectMembers={projectMembers}
                 onSprintCreated={sprint => setSprints(ss => [...ss, sprint])}
+                onSync={loadData}
+                onSwitchToBoard={() => setActiveView('board')}
+                canEdit={canEdit}
+                isViewer={isViewer}
               />
             )}
             {activeView === 'burndown' && (
@@ -1801,6 +2972,7 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
           project={project}
           projectMembers={projectMembers}
           sprints={sprints}
+          onSprintCreated={sprint => setSprints(ss => [...ss, sprint])}
           onClose={() => setShowCreateTask(false)}
           onCreated={task => setTasks(ts => [task, ...ts])}
         />
@@ -1810,11 +2982,33 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
         <TaskDetailModal
           task={detailTask}
           projectMembers={projectMembers}
+          sprints={sprints}
+          canEdit={canEdit}
           onClose={() => setDetailTask(null)}
           onUpdate={updated => {
             setTasks(ts => ts.map(t => t.id === updated.id ? { ...t, ...updated } : t));
             setDetailTask(s => s ? { ...s, ...updated } : null);
           }}
+          onDelete={handleDeleteTask}
+        />
+      )}
+
+      {/* Task Edit History Modal */}
+      {historyTaskId && (
+        <TaskHistoryModal
+          taskId={historyTaskId}
+          onClose={() => setHistoryTaskId(null)}
+        />
+      )}
+
+      {/* Task Date History Modal */}
+      {showDateHistoryModal && (
+        <TaskDateHistoryModal
+          isOpen={showDateHistoryModal}
+          onClose={() => setShowDateHistoryModal(false)}
+          projectId={project.id}
+          onViewTaskHistory={id => setHistoryTaskId(id)}
+          onEditTask={task => setDetailTask(task)}
         />
       )}
     </div>

@@ -61,6 +61,7 @@ router.post('/admin-login', validateLogin, authCtrl.adminLogin);
  *     tags: [Auth]
  */
 router.post('/refresh', authCtrl.refresh);
+router.post('/admin-refresh', authCtrl.adminRefresh);
 
 /**
  * @swagger
@@ -84,6 +85,28 @@ router.get(
 
 // Google Login via Firebase
 router.post('/google-firebase', authCtrl.googleFirebaseLogin);
+
+// ── Profile & Account Settings ──────────────────────────────────
+const { authenticate } = require('../middleware/authMiddleware');
+
+router.get('/me', authenticate, authCtrl.getMe);
+router.put('/profile', authenticate, authCtrl.updateProfile);
+router.post(
+  '/avatar',
+  authenticate,
+  (req, res, next) => {
+    authCtrl.avatarUpload.single('avatar')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next();
+    });
+  },
+  authCtrl.uploadAvatar
+);
+router.delete('/avatar', authenticate, authCtrl.deleteAvatar);
+router.post('/change-password', authenticate, authCtrl.changePassword);
+router.get('/sessions', authenticate, authCtrl.getSessions);
 
 module.exports = router;
 

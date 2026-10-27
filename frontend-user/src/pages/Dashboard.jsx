@@ -5,7 +5,10 @@ import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import Sidebar from '../components/Sidebar';
 import TaskModal from '../components/TaskModal';
+import TaskHistoryModal from '../components/TaskHistoryModal';
+import TaskDateHistoryModal from '../components/TaskDateHistoryModal';
 import StatsModal from '../components/StatsModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 const PRIORITY_LABELS = {
   low: 'Thấp',
@@ -57,7 +60,7 @@ function formatDueDate(dueDate, status) {
   return { cls, label };
 }
 
-function TaskCard({ task, onEdit, onDelete, onStatusChange, isDragging, onDragStart, onDragEnd }) {
+function TaskCard({ task, onEdit, onDelete, onStatusChange, onViewHistory, isDragging, onDragStart, onDragEnd }) {
   const dueInfo = formatDueDate(task.due_date, task.status);
   const isDone = task.status === 'done';
 
@@ -75,6 +78,10 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, isDragging, onDragSt
     return <span>{icon}</span>;
   };
 
+  const timeRangeStr = task.start_time
+    ? `${task.start_time.slice(0, 5)}${task.end_time ? ` – ${task.end_time.slice(0, 5)}` : ''}`
+    : null;
+
   return (
     <div
       className={`task-card ${isDragging ? 'dragging' : ''} ${isDone ? 'completed-card' : ''}`}
@@ -84,6 +91,16 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, isDragging, onDragSt
       onDragEnd={onDragEnd}
     >
       <div className="task-card-actions" onClick={e => e.stopPropagation()}>
+        {task.is_edited && (
+          <button
+            className="btn-icon"
+            title={`Xem lịch sử chỉnh sửa (${task.edit_count || 1} lần)`}
+            onClick={() => onViewHistory(task.id)}
+            style={{ color: '#d97706' }}
+          >
+            📜
+          </button>
+        )}
         <button className="btn-icon" title="Chỉnh sửa" onClick={() => onEdit(task)}>✏️</button>
         <button className="btn-icon" title="Xóa" onClick={() => onDelete(task.id)}>🗑️</button>
       </div>
@@ -123,7 +140,7 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, isDragging, onDragSt
         </div>
       </div>
 
-      <div className="task-card-meta" style={{ paddingLeft: '1.75rem' }}>
+      <div className="task-card-meta" style={{ paddingLeft: '1.75rem', flexWrap: 'wrap', gap: '0.4rem' }}>
         <span className={`priority-dot ${task.priority}`} />
         <span className={`badge badge-${task.priority}`}>{PRIORITY_LABELS[task.priority]}</span>
 
@@ -141,9 +158,73 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, isDragging, onDragSt
           </span>
         )}
 
+        {/* Due Date with (Đã chỉnh sửa) label as specified */}
         {dueInfo && (
-          <span className={`due-date ${dueInfo.cls}`}>
+          <span className={`due-date ${dueInfo.cls}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
             📅 {dueInfo.label}
+            {task.is_edited && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewHistory(task.id);
+                }}
+                style={{
+                  color: '#d97706',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '0.72rem',
+                  marginLeft: '0.15rem',
+                }}
+                title="Đã chỉnh sửa. Bấm để xem so sánh lịch sử."
+              >
+                (Đã chỉnh sửa)
+              </span>
+            )}
+          </span>
+        )}
+
+        {/* If no due date but edited, still show (Đã chỉnh sửa) */}
+        {!dueInfo && task.is_edited && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewHistory(task.id);
+            }}
+            style={{
+              color: '#d97706',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: '0.72rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.2rem',
+            }}
+            title="Đã chỉnh sửa. Bấm để xem so sánh lịch sử."
+          >
+            ✏️ (Đã chỉnh sửa)
+          </span>
+        )}
+
+        {/* Start and end time */}
+        {timeRangeStr && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+            ⏰ {timeRangeStr}
+          </span>
+        )}
+
+        {/* Story Point */}
+        {task.story_points !== null && task.story_points !== undefined && (
+          <span
+            style={{
+              fontSize: '0.72rem',
+              padding: '0.1rem 0.4rem',
+              borderRadius: '4px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              color: '#6366f1',
+              fontWeight: 600,
+            }}
+          >
+            🎯 {task.story_points} SP
           </span>
         )}
       </div>
@@ -174,9 +255,14 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
+  const [historyTaskId, setHistoryTaskId] = useState(null);
+  const [showDateHistoryModal, setShowDateHistoryModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterEditStatus, setFilterEditStatus] = useState(''); // '' | 'edited' | 'unedited'
+  const [filterStoryPoints, setFilterStoryPoints] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'due_date' | 'priority' | 'alphabet'
@@ -190,12 +276,26 @@ export default function Dashboard() {
   const [quickAddCol, setQuickAddCol] = useState(null);
   const [quickAddTitle, setQuickAddTitle] = useState('');
   const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
-  // Streak calculation (persisted in localStorage)
+  // Streak calculation (persisted per account in localStorage)
   const [streak, setStreak] = useState(() => {
-    const saved = localStorage.getItem('user_streak');
-    return saved ? parseInt(saved, 10) : 1;
+    if (user?.id) {
+      const saved = localStorage.getItem(`user_streak_${user.id}`);
+      return saved !== null ? parseInt(saved, 10) : 0;
+    }
+    return 0;
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.removeItem('user_streak'); // cleanup legacy global key
+      const saved = localStorage.getItem(`user_streak_${user.id}`);
+      if (saved !== null) {
+        setStreak(parseInt(saved, 10));
+      }
+    }
+  }, [user?.id]);
 
   // Daily quote selection
   const dailyQuote = useMemo(() => {
@@ -217,6 +317,9 @@ export default function Dashboard() {
       if (filterStatus) params.status = filterStatus;
       if (filterPriority) params.priority = filterPriority;
       if (filterCategory) params.category_id = filterCategory;
+      if (filterEditStatus) params.is_edited = filterEditStatus;
+      if (filterStoryPoints) params.story_points = filterStoryPoints;
+      if (filterDate) params.due_date = filterDate;
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       const [tasksRes, statsRes, catsRes] = await Promise.all([
@@ -227,13 +330,19 @@ export default function Dashboard() {
 
       setTasks(tasksRes.data.data.tasks);
       setStats(statsRes.data.data);
+      if (statsRes.data?.data?.streak !== undefined) {
+        setStreak(statsRes.data.data.streak);
+        if (user?.id) {
+          localStorage.setItem(`user_streak_${user.id}`, String(statsRes.data.data.streak));
+        }
+      }
       setCategories(catsRes.data.data.categories);
     } catch {
       toast.error('Không thể tải dữ liệu nhiệm vụ');
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterPriority, filterCategory, debouncedSearch]);
+  }, [filterStatus, filterPriority, filterCategory, filterEditStatus, filterStoryPoints, filterDate, debouncedSearch, user?.id]);
 
   useEffect(() => {
     fetchAll();
@@ -249,11 +358,17 @@ export default function Dashboard() {
     });
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Bạn có chắc muốn xóa nhiệm vụ này?')) return;
+  const handleDelete = (id) => {
+    const task = tasks.find(t => t.id === id) || { id, title: 'nhiệm vụ này' };
+    setTaskToDelete(task);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return;
     try {
-      await api.delete(`/tasks/${id}`);
+      await api.delete(`/tasks/${taskToDelete.id}`);
       toast.success('Đã xóa nhiệm vụ');
+      setTaskToDelete(null);
       fetchAll();
     } catch {
       toast.error('Xóa thất bại');
@@ -268,13 +383,15 @@ export default function Dashboard() {
         toast.success('Xuất sắc! Đã hoàn thành nhiệm vụ 🎉');
 
         // Increment streak if not updated today
-        const lastDate = localStorage.getItem('last_completed_date');
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (lastDate !== todayStr) {
-          const newStreak = streak + 1;
-          setStreak(newStreak);
-          localStorage.setItem('user_streak', String(newStreak));
-          localStorage.setItem('last_completed_date', todayStr);
+        if (user?.id) {
+          const lastDate = localStorage.getItem(`last_completed_date_${user.id}`);
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (lastDate !== todayStr) {
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            localStorage.setItem(`user_streak_${user.id}`, String(newStreak));
+            localStorage.setItem(`last_completed_date_${user.id}`, todayStr);
+          }
         }
       } else {
         toast.success('Đã cập nhật trạng thái');
@@ -464,6 +581,15 @@ export default function Dashboard() {
               <span style={{ fontWeight: 700, fontSize: '0.84rem' }}>{streak} ngày</span>
             </div>
 
+            {/* Task Date History Button */}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowDateHistoryModal(true)}
+              title="Xem lịch sử nhiệm vụ và công việc theo ngày"
+            >
+              📅 Lịch sử theo ngày
+            </button>
+
             {/* Statistics Button */}
             <button
               className="btn btn-ghost btn-sm"
@@ -565,6 +691,20 @@ export default function Dashboard() {
               />
             </div>
 
+            {/* Edit History Filter */}
+            <select
+              id="filter-edit-status"
+              className="form-select"
+              style={{ width: 'auto' }}
+              value={filterEditStatus}
+              onChange={e => setFilterEditStatus(e.target.value)}
+              title="Lọc theo lịch sử chỉnh sửa"
+            >
+              <option value="">Tất cả Task</option>
+              <option value="edited">✏️ Đã chỉnh sửa</option>
+              <option value="unedited">📄 Chưa chỉnh sửa</option>
+            </select>
+
             <select
               id="filter-priority"
               className="form-select"
@@ -578,6 +718,32 @@ export default function Dashboard() {
               <option value="high">Cao</option>
               <option value="urgent">Khẩn cấp</option>
             </select>
+
+            {/* Story Points Filter */}
+            <select
+              id="filter-story-points"
+              className="form-select"
+              style={{ width: 'auto' }}
+              value={filterStoryPoints}
+              onChange={e => setFilterStoryPoints(e.target.value)}
+              title="Lọc theo Story Points"
+            >
+              <option value="">Tất cả Story Points</option>
+              {[1, 2, 3, 5, 8, 13].map(sp => (
+                <option key={sp} value={sp}>🎯 {sp} SP</option>
+              ))}
+            </select>
+
+            {/* Date Filter */}
+            <input
+              id="filter-date"
+              type="date"
+              className="form-input"
+              style={{ width: 'auto', padding: '0.4rem 0.65rem' }}
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              title="Lọc theo ngày thực hiện"
+            />
 
             <select
               className="form-select"
@@ -611,7 +777,7 @@ export default function Dashboard() {
               </span>
             )}
 
-            {(filterStatus || filterPriority || filterCategory || search) && (
+            {(filterStatus || filterPriority || filterCategory || search || filterEditStatus || filterStoryPoints || filterDate) && (
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
@@ -619,6 +785,9 @@ export default function Dashboard() {
                   setFilterPriority('');
                   setFilterCategory('');
                   setSearch('');
+                  setFilterEditStatus('');
+                  setFilterStoryPoints('');
+                  setFilterDate('');
                 }}
               >
                 ✕ Xóa bộ lọc
@@ -649,6 +818,7 @@ export default function Dashboard() {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onStatusChange={handleStatusChange}
+                    onViewHistory={id => setHistoryTaskId(id)}
                     isDragging={draggingTaskId === task.id}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
@@ -702,6 +872,7 @@ export default function Dashboard() {
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onStatusChange={handleStatusChange}
+                            onViewHistory={id => setHistoryTaskId(id)}
                             isDragging={draggingTaskId === task.id}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
@@ -772,6 +943,7 @@ export default function Dashboard() {
           categories={categories}
           onClose={handleModalClose}
           onSave={handleModalSave}
+          onViewHistory={id => setHistoryTaskId(id)}
         />
       )}
 
@@ -783,6 +955,39 @@ export default function Dashboard() {
           categories={categories}
           streak={streak}
           onClose={() => setShowStatsModal(false)}
+        />
+      )}
+
+      {/* Modern Confirm Modal */}
+      {taskToDelete && (
+        <ConfirmModal
+          isOpen={!!taskToDelete}
+          title="Xác nhận xóa nhiệm vụ"
+          message={`Bạn có chắc muốn xóa nhiệm vụ "${taskToDelete.title}"?\nHành động này không thể hoàn tác.`}
+          confirmText="🗑️ Xóa nhiệm vụ"
+          cancelText="Hủy bỏ"
+          variant="danger"
+          icon="🗑️"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setTaskToDelete(null)}
+        />
+      )}
+
+      {/* Task Edit History Modal */}
+      {historyTaskId && (
+        <TaskHistoryModal
+          taskId={historyTaskId}
+          onClose={() => setHistoryTaskId(null)}
+        />
+      )}
+
+      {/* Task Date History Modal */}
+      {showDateHistoryModal && (
+        <TaskDateHistoryModal
+          isOpen={showDateHistoryModal}
+          onClose={() => setShowDateHistoryModal(false)}
+          onViewTaskHistory={id => setHistoryTaskId(id)}
+          onEditTask={task => handleEdit(task)}
         />
       )}
     </div>

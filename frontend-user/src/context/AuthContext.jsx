@@ -51,8 +51,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (updatedUser) => {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, loginWithGoogleFirebase }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, updateUser, loginWithGoogleFirebase }}>
       {children}
     </AuthContext.Provider>
   );

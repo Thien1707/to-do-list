@@ -8,20 +8,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh token on 401 (except for admin-login and refresh endpoints)
+// Auto-refresh token on 401, handle 403 session expiration
 api.interceptors.response.use(
   res => res,
   async (error) => {
     const original = error.config;
     const isAuthRequest =
       original?.url?.includes('/auth/admin-login') ||
+      original?.url?.includes('/auth/admin-refresh') ||
       original?.url?.includes('/auth/refresh');
 
     if (error.response?.status === 401 && !original?._retry && !isAuthRequest) {
       original._retry = true;
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post('/api/auth/admin-refresh', {}, { withCredentials: true });
         localStorage.setItem('adminToken', data.data.accessToken);
+        if (data.data?.user) {
+          localStorage.setItem('adminUser', JSON.stringify(data.data.user));
+        }
         original.headers.Authorization = `Bearer ${data.data.accessToken}`;
         return api(original);
       } catch {
@@ -30,6 +34,14 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+
+    // If 403 Forbidden (e.g. non-admin token or demoted account), logout and return to admin login
+    if (error.response?.status === 403 && !isAuthRequest) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      window.location.href = '/login';
+    }
+
     return Promise.reject(error);
   }
 );

@@ -211,12 +211,22 @@ exports.getAllTasks = async (req, res) => {
 
     const { count, rows } = await Task.findAndCountAll({
       where,
-      include: [{ model: User, attributes: ['id', 'name', 'email', 'avatar_url'] }],
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatar_url'] },
+        { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatar_url'], required: false },
+      ],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
     });
-    return res.json({ success: true, data: { tasks: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
+
+    const tasks = rows.map(t => {
+      const plain = t.toJSON();
+      plain.User = plain.owner || null;
+      return plain;
+    });
+
+    return res.json({ success: true, data: { tasks, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
   }

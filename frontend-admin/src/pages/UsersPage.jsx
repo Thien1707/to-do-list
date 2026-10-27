@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/AdminLayout';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -9,6 +10,9 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // In-app Confirm Modal (replaces browser confirm)
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
 
   // Reset Password Modal
   const [resetModalUser, setResetModalUser] = useState(null);
@@ -52,18 +56,26 @@ export default function UsersPage() {
     }
   };
 
-  const handleChangeRole = async (user) => {
+  const handleChangeRole = (user) => {
     const nextRole = user.role === 'admin' ? 'user' : 'admin';
     const actionText = nextRole === 'admin' ? 'nâng lên làm Quản trị viên' : 'chuyển về làm Người dùng thường';
-    if (!confirm(`Bạn có chắc muốn ${actionText} cho "${user.name}"?`)) return;
-
-    try {
-      await api.put(`/admin/users/${user.id}/role`, { role: nextRole });
-      toast.success(`Đã cập nhật vai trò cho ${user.name}`);
-      fetchUsers(pagination.page);
-    } catch {
-      toast.error('Đổi vai trò thất bại');
-    }
+    setConfirmModalConfig({
+      title: 'Thay đổi vai trò người dùng',
+      message: `Bạn có chắc muốn ${actionText} cho "${user.name}"?`,
+      confirmText: nextRole === 'admin' ? '👑 Cấp quyền Admin' : '👤 Chuyển thành User',
+      variant: 'primary',
+      icon: '👤',
+      onConfirm: async () => {
+        try {
+          await api.put(`/admin/users/${user.id}/role`, { role: nextRole });
+          toast.success(`Đã cập nhật vai trò cho ${user.name}`);
+          setConfirmModalConfig(null);
+          fetchUsers(pagination.page);
+        } catch {
+          toast.error('Đổi vai trò thất bại');
+        }
+      },
+    });
   };
 
   const handleResetPassword = async (e) => {
@@ -86,15 +98,24 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (user) => {
-    if (!confirm(`Bạn có chắc muốn xóa vĩnh viễn người dùng "${user.name}"? Mọi nhiệm vụ của người dùng này cũng sẽ bị xóa!`)) return;
-    try {
-      await api.delete(`/admin/users/${user.id}`);
-      toast.success('Đã xóa người dùng thành công');
-      fetchUsers(pagination.page);
-    } catch {
-      toast.error('Xóa thất bại');
-    }
+  const handleDelete = (user) => {
+    setConfirmModalConfig({
+      title: 'Xóa vĩnh viễn người dùng',
+      message: `Bạn có chắc muốn xóa vĩnh viễn người dùng "${user.name}"?\nMọi nhiệm vụ của người dùng này cũng sẽ bị xóa vĩnh viễn!`,
+      confirmText: '🗑️ Xóa vĩnh viễn',
+      variant: 'danger',
+      icon: '🗑️',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/admin/users/${user.id}`);
+          toast.success('Đã xóa người dùng thành công');
+          setConfirmModalConfig(null);
+          fetchUsers(pagination.page);
+        } catch {
+          toast.error('Xóa thất bại');
+        }
+      },
+    });
   };
 
   const handleExportCSV = () => {
@@ -387,6 +408,21 @@ export default function UsersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* In-app Confirmation Modal */}
+      {confirmModalConfig && (
+        <ConfirmModal
+          isOpen={!!confirmModalConfig}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          confirmText={confirmModalConfig.confirmText}
+          cancelText="Hủy bỏ"
+          variant={confirmModalConfig.variant}
+          icon={confirmModalConfig.icon}
+          onConfirm={confirmModalConfig.onConfirm}
+          onClose={() => setConfirmModalConfig(null)}
+        />
       )}
     </AdminLayout>
   );

@@ -24,6 +24,7 @@ export const projectService = {
   listSprints: (id) => api.get(`/projects/${id}/sprints`),
   createSprint: (id, data) => api.post(`/projects/${id}/sprints`, data),
   updateSprint: (id, sprintId, data) => api.put(`/projects/${id}/sprints/${sprintId}`, data),
+  removeSprint: (id, sprintId) => api.delete(`/projects/${id}/sprints/${sprintId}`),
 };
 
 export const commentService = {

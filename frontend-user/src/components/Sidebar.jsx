@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import AccountSettingsModal from './AccountSettingsModal';
+import ConfirmModal from './ConfirmModal';
 
 const NAV_ITEMS = [
   { icon: '🏠', label: 'Tất cả nhiệm vụ', filter: '', route: null },
@@ -26,28 +28,59 @@ export default function Sidebar({
   onCategoryChange,
   onRefresh,
   onOpenStats,
-  streak = 1,
+  streak = 0,
   isOpen,
   onClose,
 }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const location = useLocation();
+  const { user: authUser, logout, updateUser } = useAuth();
+  const displayUser = user || authUser;
+  const effectiveStreak = displayUser?.id
+    ? (localStorage.getItem(`user_streak_${displayUser.id}`) !== null
+        ? parseInt(localStorage.getItem(`user_streak_${displayUser.id}`), 10)
+        : (streak || 0))
+    : (streak || 0);
+
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCatModal, setShowCatModal] = useState(false);
   const [newCat, setNewCat] = useState({ name: '', color: '#4f46e5', icon: '📁' });
   const [customIconPreview, setCustomIconPreview] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [catToDelete, setCatToDelete] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const onThemeChange = (e) => {
+      const nextTheme = e.detail || localStorage.getItem('theme') || 'light';
+      setTheme(nextTheme);
+    };
+    window.addEventListener('theme-change', onThemeChange);
+    return () => window.removeEventListener('theme-change', onThemeChange);
+  }, []);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else if (theme === 'light') {
+      document.documentElement.removeAttribute('data-theme');
+    } else if (theme === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+    }
     localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(t => (t === 'light' ? 'dark' : 'light'));
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: nextTheme }));
   };
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     await logout();
     toast.success('Đã đăng xuất');
     navigate('/login');
@@ -95,16 +128,22 @@ export default function Sidebar({
     }
   };
 
-  const handleDeleteCategory = async (e, cat) => {
+  const handleDeleteCategory = (e, cat) => {
     e.stopPropagation();
-    if (!confirm(`Xóa danh mục "${cat.name}"? Các nhiệm vụ trong danh mục này sẽ không bị xóa.`)) return;
+    setCatToDelete(cat);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!catToDelete) return;
     try {
-      await api.delete(`/tasks/categories/${cat.id}`);
+      await api.delete(`/tasks/categories/${catToDelete.id}`);
       toast.success('Đã xóa danh mục');
-      if (activeCategory === cat.id) onCategoryChange('');
+      if (activeCategory === catToDelete.id) onCategoryChange('');
       onRefresh();
     } catch {
       toast.error('Không thể xóa danh mục');
+    } finally {
+      setCatToDelete(null);
     }
   };
 
@@ -122,9 +161,9 @@ export default function Sidebar({
     return <span>{icon}</span>;
   };
 
-  const initials = user?.name
-    ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-    : (user?.email?.[0] || '?').toUpperCase();
+  const initials = displayUser?.name
+    ? displayUser.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : (displayUser?.email?.[0] || '?').toUpperCase();
 
   return (
     <>
@@ -176,7 +215,7 @@ export default function Sidebar({
               <span style={{ fontSize: '1.15rem' }}>🔥</span>
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f97316' }}>
-                  Chuỗi {streak} ngày
+                  Chuỗi {effectiveStreak} ngày
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                   Duy trì thói quen tốt
@@ -214,9 +253,8 @@ export default function Sidebar({
 
           {/* Projects Button */}
           <button
-            className="nav-item"
+            className={`nav-item ${location.pathname.startsWith('/projects') ? 'active' : ''}`}
             onClick={() => { navigate('/projects'); if (onClose) onClose(); }}
-            style={{ color: 'var(--primary)', fontWeight: 600 }}
           >
             <span className="nav-icon">🗂️</span>
             <span>Projects</span>
@@ -225,8 +263,7 @@ export default function Sidebar({
           {/* Quick Statistics Button */}
           <button
             className="nav-item"
-            onClick={onOpenStats}
-            style={{ color: 'var(--primary)' }}
+            onClick={() => { onOpenStats(); if (onClose) onClose(); }}
           >
             <span className="nav-icon">📊</span>
             <span>Biểu đồ & Thành tựu</span>
@@ -288,26 +325,113 @@ export default function Sidebar({
           )}
         </nav>
 
-        {/* User Card & Logout */}
+        {/* User Card & Settings */}
         <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)' }}>
-          <div className="sidebar-user" style={{ margin: 0, marginBottom: '0.5rem' }}>
-            <div className="user-avatar">
-              {user?.avatar_url ? <img src={user.avatar_url} alt="avatar" /> : initials}
-            </div>
-            <div className="user-info">
-              <div className="user-name">{user?.name || user?.email}</div>
-              <div className="user-role">{user?.email}</div>
-            </div>
-          </div>
-          <button
-            className="nav-item"
-            style={{ color: 'var(--danger)', width: '100%', padding: '0.45rem 0.65rem' }}
-            onClick={handleLogout}
+          <div
+            className="sidebar-user"
+            onClick={() => setShowAccountModal(true)}
+            style={{
+              margin: 0,
+              marginBottom: '0.45rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.55rem 0.65rem',
+              borderRadius: 8,
+              transition: 'all 0.15s ease',
+            }}
+            title="Nhấn để mở Cài đặt tài khoản & Hồ sơ"
           >
-            <span className="nav-icon">🚪</span>
-            <span>Đăng xuất</span>
-          </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', overflow: 'hidden' }}>
+              <div className="user-avatar" style={{ width: 34, height: 34, flexShrink: 0 }}>
+                {displayUser?.avatar_url ? (
+                  <img src={displayUser.avatar_url} alt="avatar" />
+                ) : (
+                  initials
+                )}
+              </div>
+              <div className="user-info" style={{ overflow: 'hidden' }}>
+                <div className="user-name" style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {displayUser?.name || displayUser?.email}
+                </div>
+                <div className="user-role" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {displayUser?.email}
+                </div>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-muted)',
+                padding: '4px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Cài đặt"
+            >
+              ⚙️
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.35rem',
+                fontSize: '0.78rem',
+                whiteSpace: 'nowrap',
+                borderRadius: 6,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => setShowAccountModal(true)}
+              title="Mở hồ sơ và cài đặt tài khoản"
+            >
+              <span>⚙️</span>
+              <span>Cài đặt</span>
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.35rem',
+                fontSize: '0.78rem',
+                whiteSpace: 'nowrap',
+                borderRadius: 6,
+                color: 'var(--danger)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => setShowLogoutConfirm(true)}
+              title="Đăng xuất khỏi hệ thống"
+            >
+              <span>🚪</span>
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </div>
+
+        {/* Account & Profile Settings Modal */}
+        {showAccountModal && (
+          <AccountSettingsModal
+            user={displayUser}
+            onUpdateUser={(updatedUser) => {
+              if (updateUser) updateUser(updatedUser);
+              if (onRefresh) onRefresh();
+            }}
+            onClose={() => setShowAccountModal(false)}
+          />
+        )}
 
         {/* Modal: Add Category with rich icon picker & file upload */}
         {showCatModal && (
@@ -465,6 +589,32 @@ export default function Sidebar({
               </form>
             </div>
           </div>
+        )}
+        {catToDelete && (
+          <ConfirmModal
+            isOpen={!!catToDelete}
+            title="Xác nhận xóa danh mục"
+            message={`Bạn có chắc muốn xóa danh mục "${catToDelete.name}"? Các nhiệm vụ trong danh mục này sẽ không bị xóa.`}
+            confirmText="Xóa danh mục"
+            cancelText="Hủy bỏ"
+            variant="danger"
+            icon="📁"
+            onConfirm={confirmDeleteCategory}
+            onClose={() => setCatToDelete(null)}
+          />
+        )}
+        {showLogoutConfirm && (
+          <ConfirmModal
+            isOpen={showLogoutConfirm}
+            title="Đăng xuất"
+            message="Bạn có chắc chắn muốn đăng xuất khỏi tài khoản TaskFlow?"
+            confirmText="🚪 Đăng xuất"
+            cancelText="Ở lại"
+            variant="warning"
+            icon="🚪"
+            onConfirm={handleLogout}
+            onClose={() => setShowLogoutConfirm(false)}
+          />
         )}
       </aside>
     </>

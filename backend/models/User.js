@@ -10,7 +10,21 @@ const User = sequelize.define('User', {
   password_hash: { type: DataTypes.STRING(255), allowNull: true },
   role: { type: DataTypes.ENUM('user', 'admin'), defaultValue: 'user', allowNull: false },
   google_id: { type: DataTypes.STRING(100), allowNull: true, unique: true },
-  avatar_url: { type: DataTypes.TEXT, allowNull: true },
+  avatar_url: { type: DataTypes.TEXT('long'), allowNull: true },
+  phone: { type: DataTypes.STRING(20), allowNull: true },
+  bio: { type: DataTypes.TEXT, allowNull: true },
+  job_title: { type: DataTypes.STRING(100), allowNull: true },
+  department: { type: DataTypes.STRING(100), allowNull: true },
+  theme_preference: { type: DataTypes.STRING(20), defaultValue: 'light' },
+  notification_settings: {
+    type: DataTypes.JSON,
+    defaultValue: {
+      email_reminders: true,
+      due_date_alerts: true,
+      system_updates: true,
+      sound_enabled: true,
+    },
+  },
   is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
 }, {
   tableName: 'users',
@@ -34,7 +48,8 @@ User.prototype.comparePassword = async function (password) {
 };
 
 User.prototype.toSafeJSON = function () {
-  const { password_hash, google_id, ...safe } = this.toJSON();
+  const { password_hash, ...safe } = this.toJSON();
+  safe.hasPassword = !!password_hash;
   return safe;
 };
 

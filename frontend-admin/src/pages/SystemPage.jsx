@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/AdminLayout';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function SystemPage() {
   const [sysInfo, setSysInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cleaning, setCleaning] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
 
   const fetchSystemInfo = async () => {
     try {
@@ -23,18 +25,27 @@ export default function SystemPage() {
     fetchSystemInfo();
   }, []);
 
-  const handleCleanup = async () => {
-    if (!confirm('Bạn có chắc muốn dọn dẹp các nhiệm vụ đã hủy khỏi hệ thống? Thao tác này sẽ giải phóng bộ nhớ cơ sở dữ liệu.')) return;
-    setCleaning(true);
-    try {
-      const { data } = await api.post('/admin/cleanup');
-      toast.success(data.message || 'Đã dọn dẹp hệ thống thành công');
-      fetchSystemInfo();
-    } catch {
-      toast.error('Dọn dẹp thất bại');
-    } finally {
-      setCleaning(false);
-    }
+  const handleCleanup = () => {
+    setConfirmModalConfig({
+      title: 'Dọn dẹp hệ thống',
+      message: 'Bạn có chắc muốn dọn dẹp các nhiệm vụ đã hủy khỏi hệ thống?\nThao tác này sẽ xóa vĩnh viễn các tác vụ rác và tối ưu hóa dung lượng cơ sở dữ liệu.',
+      confirmText: '🧹 Tiến hành dọn dẹp',
+      variant: 'warning',
+      icon: '🧹',
+      onConfirm: async () => {
+        setCleaning(true);
+        try {
+          const { data } = await api.post('/admin/cleanup');
+          toast.success(data.message || 'Đã dọn dẹp hệ thống thành công');
+          setConfirmModalConfig(null);
+          fetchSystemInfo();
+        } catch {
+          toast.error('Dọn dẹp thất bại');
+        } finally {
+          setCleaning(false);
+        }
+      },
+    });
   };
 
   const handleExportBackup = async () => {
@@ -227,6 +238,21 @@ export default function SystemPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* In-app Confirmation Modal */}
+      {confirmModalConfig && (
+        <ConfirmModal
+          isOpen={!!confirmModalConfig}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          confirmText={confirmModalConfig.confirmText}
+          cancelText="Hủy bỏ"
+          variant={confirmModalConfig.variant}
+          icon={confirmModalConfig.icon}
+          onConfirm={confirmModalConfig.onConfirm}
+          onClose={() => setConfirmModalConfig(null)}
+        />
       )}
     </AdminLayout>
   );

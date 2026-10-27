@@ -12,9 +12,11 @@ router.get('/categories', taskCtrl.getCategories);
 router.post('/categories', taskCtrl.createCategory);
 router.delete('/categories/:id', taskCtrl.deleteCategory);
 
+router.get('/by-date', taskCtrl.getTasksByDate);
 router.get('/', taskCtrl.getTasks);
 router.post('/', taskCtrl.createTask);
 router.get('/:id', taskCtrl.getTask);
+router.get('/:id/history', taskCtrl.getTaskHistory);
 router.put('/:id', taskCtrl.updateTask);
 router.delete('/:id', taskCtrl.deleteTask);
 router.patch('/:id/status', taskCtrl.updateStatus);

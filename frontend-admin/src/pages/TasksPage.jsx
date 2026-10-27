@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/AdminLayout';
+import ConfirmModal from '../components/ConfirmModal';
 
 const STATUS_MAP = {
   todo: '📋 Cần làm',
@@ -36,6 +37,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '' });
   const [saving, setSaving] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -67,10 +69,11 @@ export default function TasksPage() {
   const groupedByUser = useMemo(() => {
     const map = {};
     tasks.forEach(task => {
-      const userId = task.User?.id || 'unknown';
+      const userObj = task.owner || task.User;
+      const userId = userObj?.id || 'unknown';
       if (!map[userId]) {
         map[userId] = {
-          user: task.User || { id: 'unknown', name: 'Không xác định', email: '—', avatar_url: null },
+          user: userObj || { id: 'unknown', name: 'Không xác định', email: '—', avatar_url: null },
           tasks: [],
           total: 0,
           done: 0,
@@ -105,15 +108,25 @@ export default function TasksPage() {
     setExpandedUsers({});
   };
 
-  const handleDelete = async (task) => {
-    if (!confirm(`Bạn có chắc muốn xóa nhiệm vụ "${task.title}" của người dùng "${task.User?.name || 'Vô danh'}"?`)) return;
-    try {
-      await api.delete(`/admin/tasks/${task.id}`);
-      toast.success('Đã xóa nhiệm vụ thành công');
-      fetchTasks(pagination.page);
-    } catch {
-      toast.error('Xóa nhiệm vụ thất bại');
-    }
+  const handleDelete = (task) => {
+    const ownerName = task.owner?.name || task.User?.name || 'Vô danh';
+    setConfirmModalConfig({
+      title: 'Xóa nhiệm vụ',
+      message: `Bạn có chắc muốn xóa nhiệm vụ "${task.title}" của người dùng "${ownerName}"?\nHành động này không thể hoàn tác.`,
+      confirmText: '🗑️ Xóa nhiệm vụ',
+      variant: 'danger',
+      icon: '🗑️',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/admin/tasks/${task.id}`);
+          toast.success('Đã xóa nhiệm vụ thành công');
+          setConfirmModalConfig(null);
+          fetchTasks(pagination.page);
+        } catch {
+          toast.error('Xóa nhiệm vụ thất bại');
+        }
+      },
+    });
   };
 
   const handleOpenEdit = (task) => {
@@ -494,19 +507,21 @@ export default function TasksPage() {
                       )}
                     </td>
                     <td>
-                      {task.User ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                          <div className="user-avatar" style={{ width: 28, height: 28, fontSize: '0.72rem' }}>
-                            {task.User.avatar_url ? <img src={task.User.avatar_url} alt="" /> : initials(task.User.name)}
+                      {(() => {
+                        const u = task.owner || task.User;
+                        if (!u) return <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                            <div className="user-avatar" style={{ width: 28, height: 28, fontSize: '0.72rem' }}>
+                              {u.avatar_url ? <img src={u.avatar_url} alt="" /> : initials(u.name)}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>{u.name}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>{task.User.name}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{task.User.email}</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
-                      )}
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className={`badge badge-${task.status}`}>{STATUS_MAP[task.status]}</span>
@@ -751,6 +766,21 @@ export default function TasksPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* In-app Confirmation Modal */}
+      {confirmModalConfig && (
+        <ConfirmModal
+          isOpen={!!confirmModalConfig}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          confirmText={confirmModalConfig.confirmText}
+          cancelText="Hủy bỏ"
+          variant={confirmModalConfig.variant}
+          icon={confirmModalConfig.icon}
+          onConfirm={confirmModalConfig.onConfirm}
+          onClose={() => setConfirmModalConfig(null)}
+        />
       )}
     </AdminLayout>
   );

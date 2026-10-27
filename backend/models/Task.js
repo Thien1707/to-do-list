@@ -23,6 +23,12 @@ const Task = sequelize.define('Task', {
   },
   story_points: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
   due_date: { type: DataTypes.DATEONLY, allowNull: true },
+  start_time: { type: DataTypes.STRING(10), allowNull: true, defaultValue: null },
+  end_time: { type: DataTypes.STRING(10), allowNull: true, defaultValue: null },
+  is_edited: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  edit_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  last_edited_at: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
+  last_edited_by: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
   completed_at: { type: DataTypes.DATE, allowNull: true },
 }, {
   tableName: 'tasks',

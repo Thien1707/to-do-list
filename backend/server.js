@@ -84,6 +84,75 @@ const start = async () => {
           defaultValue: null,
         });
       }
+      if (!cols.start_time) {
+        await qi.addColumn('tasks', 'start_time', {
+          type: DataTypes.STRING(10),
+          allowNull: true,
+          defaultValue: null,
+        });
+      }
+      if (!cols.end_time) {
+        await qi.addColumn('tasks', 'end_time', {
+          type: DataTypes.STRING(10),
+          allowNull: true,
+          defaultValue: null,
+        });
+      }
+      if (!cols.is_edited) {
+        await qi.addColumn('tasks', 'is_edited', {
+          type: DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false,
+        });
+      }
+      if (!cols.edit_count) {
+        await qi.addColumn('tasks', 'edit_count', {
+          type: DataTypes.INTEGER,
+          allowNull: false,
+          defaultValue: 0,
+        });
+      }
+      if (!cols.last_edited_at) {
+        await qi.addColumn('tasks', 'last_edited_at', {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: null,
+        });
+      }
+      if (!cols.last_edited_by) {
+        await qi.addColumn('tasks', 'last_edited_by', {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+          references: { model: 'users', key: 'id' },
+          onDelete: 'SET NULL',
+        });
+      }
+
+      // Đảm bảo các cột mới của bảng users tồn tại
+      const userCols = await qi.describeTable('users');
+      if (!userCols.phone) {
+        await qi.addColumn('users', 'phone', { type: DataTypes.STRING(20), allowNull: true });
+      }
+      if (!userCols.bio) {
+        await qi.addColumn('users', 'bio', { type: DataTypes.TEXT, allowNull: true });
+      }
+      if (!userCols.job_title) {
+        await qi.addColumn('users', 'job_title', { type: DataTypes.STRING(100), allowNull: true });
+      }
+      if (!userCols.department) {
+        await qi.addColumn('users', 'department', { type: DataTypes.STRING(100), allowNull: true });
+      }
+      if (!userCols.theme_preference) {
+        await qi.addColumn('users', 'theme_preference', { type: DataTypes.STRING(20), defaultValue: 'light' });
+      }
+      if (!userCols.notification_settings) {
+        await qi.addColumn('users', 'notification_settings', { type: DataTypes.JSON, allowNull: true });
+      }
+      if (userCols.avatar_url && userCols.avatar_url.type !== 'LONGTEXT') {
+        try {
+          await qi.changeColumn('users', 'avatar_url', { type: DataTypes.TEXT('long'), allowNull: true });
+        } catch (_) {}
+      }
 
       console.log('✅ Đồng bộ database và schema thành công');
     } catch (syncErr) {

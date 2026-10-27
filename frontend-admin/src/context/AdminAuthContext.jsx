@@ -5,7 +5,17 @@ const AdminAuthContext = createContext(null);
 
 export const AdminAuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('adminUser')); } catch { return null; }
+    try {
+      const u = JSON.parse(localStorage.getItem('adminUser'));
+      if (u && u.role !== 'admin') {
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('adminToken');
+        return null;
+      }
+      return u;
+    } catch {
+      return null;
+    }
   });
 
   const login = async (email, password) => {
@@ -23,8 +33,13 @@ export const AdminAuthProvider = ({ children }) => {
     setAdmin(null);
   };
 
+  const updateAdmin = (updatedUser) => {
+    localStorage.setItem('adminUser', JSON.stringify(updatedUser));
+    setAdmin(updatedUser);
+  };
+
   return (
-    <AdminAuthContext.Provider value={{ admin, login, logout }}>
+    <AdminAuthContext.Provider value={{ admin, login, logout, setAdmin, updateAdmin }}>
       {children}
     </AdminAuthContext.Provider>
   );

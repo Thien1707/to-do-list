@@ -472,3 +472,23 @@ exports.updateSprint = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
   }
 };
+
+// DELETE /api/projects/:id/sprints/:sprintId
+exports.deleteSprint = async (req, res) => {
+  try {
+    const member = await getMember(req.params.id, req.user.id);
+    if (!member || member.role === 'viewer') return res.status(403).json({ success: false, message: 'Không có quyền' });
+
+    const sprint = await Sprint.findOne({ where: { id: req.params.sprintId, project_id: req.params.id } });
+    if (!sprint) return res.status(404).json({ success: false, message: 'Không tìm thấy sprint' });
+
+    // Move tasks in sprint back to backlog
+    await Task.update({ sprint_id: null }, { where: { sprint_id: sprint.id } });
+    await sprint.destroy();
+
+    return res.json({ success: true, message: 'Đã xóa sprint thành công' });
+  } catch (err) {
+    console.error('❌ Lỗi deleteSprint:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+  }
+};

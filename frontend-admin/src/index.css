@@ -53,6 +53,44 @@
 }
 
 /* ============================================
+   DARK THEME TOKENS - Sleek, Modern & High Contrast
+   ============================================ */
+[data-theme="dark"] {
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-light: rgba(99, 102, 241, 0.2);
+  --primary-text: #a5b4fc;
+
+  --bg: #0b0f19;
+  --bg-card: #151e32;
+  --bg-elevated: #1e293b;
+  --bg-hover: #263554;
+  --border: #28354f;
+  --border-light: #1c2640;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #8292a8;
+
+  --danger: #f87171;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-text: #fca5a5;
+
+  --success: #34d399;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-border: rgba(16, 185, 129, 0.3);
+  --success-text: #6ee7b7;
+
+  --warning: #fbbf24;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #fde68a;
+
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* ============================================
    RESET & TYPOGRAPHY
    ============================================ */
 *, *::before, *::after {
@@ -585,6 +623,9 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
 
 .form-input,
 .form-select {
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

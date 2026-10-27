@@ -29,5 +29,6 @@ router.get('/:id/activity', projectCtrl.getProjectActivity);
 router.get('/:id/sprints', projectCtrl.listSprints);
 router.post('/:id/sprints', projectCtrl.createSprint);
 router.put('/:id/sprints/:sprintId', projectCtrl.updateSprint);
+router.delete('/:id/sprints/:sprintId', projectCtrl.deleteSprint);
 
 module.exports = router;

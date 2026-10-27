@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import toast from 'react-hot-toast';
+import AccountSettingsModal from './AccountSettingsModal';
+import ConfirmModal from './ConfirmModal';
 
 const NAV = [
   { key: 'dashboard', icon: '📊', label: 'Tổng quan hệ thống', path: '/dashboard' },
@@ -11,11 +13,14 @@ const NAV = [
 ];
 
 export default function AdminLayout({ children, active }) {
-  const { admin, logout } = useAdminAuth();
+  const { admin, logout, updateAdmin } = useAdminAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     await logout();
     toast.success('Đã đăng xuất khỏi phiên Admin');
     navigate('/login');
@@ -64,28 +69,84 @@ export default function AdminLayout({ children, active }) {
           ))}
         </nav>
 
-        {/* User Card & Logout */}
+        {/* User Card & Settings */}
         <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem', padding: '0.5rem', background: 'var(--bg-elevated)', borderRadius: 6 }}>
-            <div className="user-avatar">
-              {initials}
+          <div
+            onClick={() => setShowAccountModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              marginBottom: '0.55rem',
+              padding: '0.55rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Nhấn để mở Cài đặt tài khoản Admin"
+          >
+            <div className="user-avatar" style={{ width: 34, height: 34, flexShrink: 0 }}>
+              {admin?.avatar_url ? (
+                <img src={admin.avatar_url} alt="avatar" />
+              ) : (
+                initials
+              )}
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {admin?.name || 'Administrator'}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--primary)' }}>Quản trị viên</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 500 }}>
+                🛡️ Quản trị viên
+              </div>
             </div>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>⚙️</span>
           </div>
 
-          <button
-            className="nav-item"
-            style={{ color: 'var(--danger)', width: '100%', padding: '0.45rem 0.65rem' }}
-            onClick={handleLogout}
-          >
-            <span className="nav-icon">🚪</span>
-            <span>Đăng xuất</span>
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.35rem',
+                fontSize: '0.78rem',
+                whiteSpace: 'nowrap',
+                borderRadius: 6,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => setShowAccountModal(true)}
+              title="Mở cài đặt tài khoản quản trị"
+            >
+              <span>⚙️</span>
+              <span>Cài đặt</span>
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.35rem',
+                fontSize: '0.78rem',
+                whiteSpace: 'nowrap',
+                borderRadius: 6,
+                color: 'var(--danger)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => setShowLogoutConfirm(true)}
+              title="Đăng xuất khỏi hệ thống"
+            >
+              <span>🚪</span>
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -103,12 +164,51 @@ export default function AdminLayout({ children, active }) {
               {NAV.find(n => n.key === active)?.icon} {NAV.find(n => n.key === active)?.label || 'Bảng quản trị'}
             </div>
           </div>
-          <span className="header-badge">🛡️ Quản trị viên</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <button
+              onClick={() => setShowAccountModal(true)}
+              className="btn btn-sm btn-ghost"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.3rem 0.65rem', borderRadius: 99, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+              title="Nhấn để mở Cài đặt tài khoản"
+            >
+              <div className="user-avatar" style={{ width: 22, height: 22, fontSize: '0.65rem' }}>
+                {admin?.avatar_url ? <img src={admin.avatar_url} alt="" /> : initials}
+              </div>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{admin?.name?.split(' ')[0] || 'Admin'}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>⚙️</span>
+            </button>
+          </div>
         </header>
 
         <div className="page-container">
           {children}
         </div>
+
+        {/* Admin Account Settings Modal */}
+        {showAccountModal && (
+          <AccountSettingsModal
+            admin={admin}
+            onUpdateAdmin={(updatedAdmin) => {
+              if (updateAdmin) updateAdmin(updatedAdmin);
+            }}
+            onClose={() => setShowAccountModal(false)}
+          />
+        )}
+
+        {/* Logout Confirmation Modal */}
+        {showLogoutConfirm && (
+          <ConfirmModal
+            isOpen={showLogoutConfirm}
+            title="Đăng xuất quản trị"
+            message="Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc Quản trị viên?"
+            confirmText="🚪 Đăng xuất"
+            cancelText="Ở lại"
+            variant="warning"
+            icon="🚪"
+            onConfirm={handleLogout}
+            onClose={() => setShowLogoutConfirm(false)}
+          />
+        )}
       </div>
     </div>
   );

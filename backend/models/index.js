@@ -8,6 +8,7 @@ const ProjectMember = require('./ProjectMember');
 const Comment = require('./Comment');
 const ActivityLog = require('./ActivityLog');
 const Sprint = require('./Sprint');
+const TaskHistory = require('./TaskHistory');
 
 // ── User ↔ Task ──────────────────────────────────────────────
 User.hasMany(Task, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -55,6 +56,14 @@ Comment.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
 User.hasMany(ActivityLog, { foreignKey: 'user_id', onDelete: 'SET NULL' });
 ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'actor' });
 
+// ── TaskHistory (Edit History) ────────────────────────────────
+Task.hasMany(TaskHistory, { foreignKey: 'task_id', as: 'histories', onDelete: 'CASCADE' });
+TaskHistory.belongsTo(Task, { foreignKey: 'task_id', as: 'task' });
+User.hasMany(TaskHistory, { foreignKey: 'user_id', as: 'taskEdits' });
+TaskHistory.belongsTo(User, { foreignKey: 'user_id', as: 'editor' });
+User.hasMany(Task, { foreignKey: 'last_edited_by', as: 'lastEditedTasks' });
+Task.belongsTo(User, { foreignKey: 'last_edited_by', as: 'lastEditor' });
+
 module.exports = {
   sequelize,
   User,
@@ -65,4 +74,5 @@ module.exports = {
   Comment,
   ActivityLog,
   Sprint,
+  TaskHistory,
 };

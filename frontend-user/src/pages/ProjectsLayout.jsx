@@ -22,6 +22,8 @@ export default function ProjectsLayout() {
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
 
+  const userStreak = user?.id ? parseInt(localStorage.getItem(`user_streak_${user.id}`) || '0', 10) : 0;
+
   return (
     <div className="app-layout">
       <Sidebar
@@ -33,7 +35,7 @@ export default function ProjectsLayout() {
         onCategoryChange={() => navigate('/dashboard')}
         onRefresh={loadCategories}
         onOpenStats={() => navigate('/dashboard')}
-        streak={1}
+        streak={userStreak}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
