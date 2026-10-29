@@ -60,7 +60,7 @@ cd server
 npm install
 npm run dev
 ```
-- Server chạy tại: `http://localhost:5000`
+- Server chạy tại: `http://localhost:3000` (API: `/api`, docs: `/api/docs`)
 
 ### Frontend (Client)
 ```bash
