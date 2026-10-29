@@ -1,45 +1,14 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './user/context/AuthContext';
-import { AdminAuthProvider } from './admin/context/AdminAuthContext';
-import UserRoutes from './user/UserRoutes';
-import AdminRoutes from './admin/AdminRoutes';
+import './App.css';
 
-const toastOptions = {
-  style: {
-    background: 'var(--bg-elevated)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-  },
-  duration: 3000,
-};
-
-function UserApp() {
+function App() {
   return (
-    <AuthProvider>
-      <UserRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} />
-    </AuthProvider>
+    <div style={{ textAlign: 'center', marginTop: '60px', fontFamily: 'sans-serif' }}>
+      <h1>📝 To-Do List Application</h1>
+      <p style={{ color: '#64748b' }}>
+        Khung dự án Client (Frontend) - Sẵn sàng cho việc xây dựng giao diện.
+      </p>
+    </div>
   );
 }
 
-function AdminApp() {
-  return (
-    <AdminAuthProvider>
-      <AdminRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} />
-    </AdminAuthProvider>
-  );
-}
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
-        <Route path="/*" element={<UserApp />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
+export default App;
