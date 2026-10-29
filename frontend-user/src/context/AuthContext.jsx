@@ -30,7 +30,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithGoogleFirebase = async (firebaseUser) => {
+    let idToken = null;
+    try {
+      idToken = await firebaseUser.getIdToken();
+    } catch (_) {}
     const { data } = await api.post('/auth/google-firebase', {
+      idToken,
       name: firebaseUser.displayName,
       email: firebaseUser.email,
       avatar_url: firebaseUser.photoURL,

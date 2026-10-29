@@ -50,7 +50,8 @@ exports.listProjects = async (req, res) => {
 
     return res.json({ success: true, data: { projects: projectsWithStats } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -91,7 +92,8 @@ exports.createProject = async (req, res) => {
 
     return res.status(201).json({ success: true, message: 'Tạo project thành công', data: { project: full } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -114,7 +116,8 @@ exports.getProject = async (req, res) => {
     if (!project) return res.status(404).json({ success: false, message: 'Không tìm thấy project' });
     return res.json({ success: true, data: { project, myRole: member.role } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -134,7 +137,8 @@ exports.updateProject = async (req, res) => {
 
     return res.json({ success: true, message: 'Cập nhật project thành công', data: { project } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -149,7 +153,8 @@ exports.deleteProject = async (req, res) => {
     await project.destroy();
     return res.json({ success: true, message: 'Đã xóa project' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -206,7 +211,8 @@ exports.addMember = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi addMember:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -250,7 +256,8 @@ exports.lookupUser = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi lookupUser:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -297,7 +304,8 @@ exports.updateMemberRole = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi updateMemberRole:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -340,7 +348,8 @@ exports.removeMember = async (req, res) => {
     return res.json({ success: true, message: `Đã xóa ${targetName} khỏi project` });
   } catch (err) {
     console.error('❌ Lỗi removeMember:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -375,7 +384,8 @@ exports.getProjectTasks = async (req, res) => {
 
     return res.json({ success: true, data: { tasks } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -396,7 +406,8 @@ exports.getProjectActivity = async (req, res) => {
 
     return res.json({ success: true, data: { logs } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -422,7 +433,8 @@ exports.createSprint = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Tạo sprint thành công', data: { sprint } });
   } catch (err) {
     console.error('❌ Lỗi createSprint:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -437,7 +449,8 @@ exports.listSprints = async (req, res) => {
     });
     return res.json({ success: true, data: { sprints } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -469,7 +482,8 @@ exports.updateSprint = async (req, res) => {
     return res.json({ success: true, message: 'Cập nhật sprint thành công', data: { sprint } });
   } catch (err) {
     console.error('❌ Lỗi updateSprint:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -489,6 +503,7 @@ exports.deleteSprint = async (req, res) => {
     return res.json({ success: true, message: 'Đã xóa sprint thành công' });
   } catch (err) {
     console.error('❌ Lỗi deleteSprint:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };

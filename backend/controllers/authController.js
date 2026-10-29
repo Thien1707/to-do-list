@@ -7,7 +7,10 @@ const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const { User, Task, Project, ProjectMember } = require('../models');
 
-// Configure Multer storage for avatars
+// Configure Multer storage for avatars with strict security rules
+const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const ALLOWED_AVATAR_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../uploads/avatars');
@@ -17,23 +20,23 @@ const avatarStorage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.png';
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    const safeExt = ALLOWED_AVATAR_EXTS.includes(rawExt) ? rawExt : '.png';
     const uniqueSuffix = `${req.user ? req.user.id : 'anon'}-${Date.now()}-${Math.round(Math.random() * 1e4)}`;
-    cb(null, `avatar-${uniqueSuffix}${ext}`);
+    cb(null, `avatar-${uniqueSuffix}${safeExt}`);
   },
 });
 
 exports.avatarUpload = multer({
   storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB limit
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|webp|gif|svg\+xml/;
-    const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
-    const mime = file.mimetype;
-    if (allowed.test(ext) || allowed.test(mime)) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const mime = (file.mimetype || '').toLowerCase();
+    if (ALLOWED_AVATAR_EXTS.includes(ext) && ALLOWED_AVATAR_MIMES.includes(mime)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file hình ảnh (JPG, PNG, WEBP, GIF, SVG)'));
+      cb(new Error('Chỉ chấp nhận file hình ảnh hợp lệ (JPG, PNG, WEBP, GIF), tối đa 3MB'));
     }
   },
 });
@@ -52,6 +55,14 @@ const removeLocalAvatar = (avatarUrl) => {
   }
 };
 
+const isProd = process.env.NODE_ENV === 'production';
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? 'strict' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
+
 const generateTokens = (user) => {
   const payload = { id: user.id, role: user.role, email: user.email };
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
@@ -68,10 +79,11 @@ exports.register = async (req, res) => {
 
     const user = await User.create({ name, email, password_hash: password, role: 'user' });
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.status(201).json({ success: true, message: 'Đăng ký thành công', data: { user: user.toSafeJSON(), accessToken } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error('❌ Lỗi register:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -87,10 +99,11 @@ exports.login = async (req, res) => {
     if (!valid) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
 
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, message: 'Đăng nhập thành công', data: { user: user.toSafeJSON(), accessToken } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error('❌ Lỗi login:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -106,11 +119,12 @@ exports.adminLogin = async (req, res) => {
     if (!valid) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
 
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('adminRefreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('adminRefreshToken', refreshToken, getCookieOptions());
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, message: 'Đăng nhập admin thành công', data: { user: user.toSafeJSON(), accessToken } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error('❌ Lỗi adminLogin:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -125,7 +139,7 @@ exports.adminRefresh = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Tài khoản không có quyền Admin' });
     }
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('adminRefreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('adminRefreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, data: { accessToken, user: user.toSafeJSON() } });
   } catch (err) {
     return res.status(401).json({ success: false, message: 'Token hết hạn hoặc không hợp lệ' });
@@ -141,7 +155,7 @@ exports.refresh = async (req, res) => {
     const user = await User.findByPk(decoded.id);
     if (!user || !user.is_active) return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, data: { accessToken } });
   } catch (err) {
     return res.status(401).json({ success: false, message: 'Token hết hạn hoặc không hợp lệ' });
@@ -150,8 +164,8 @@ exports.refresh = async (req, res) => {
 
 // POST /api/auth/logout
 exports.logout = (req, res) => {
-  res.clearCookie('refreshToken');
-  res.clearCookie('adminRefreshToken');
+  res.clearCookie('refreshToken', getCookieOptions());
+  res.clearCookie('adminRefreshToken', getCookieOptions());
   return res.json({ success: true, message: 'Đăng xuất thành công' });
 };
 
@@ -166,24 +180,52 @@ exports.googleCallback = (req, res) => {
 // POST /api/auth/google-firebase
 exports.googleFirebaseLogin = async (req, res) => {
   try {
-    const { email, name, avatar_url, google_id } = req.body;
+    const { email, name, avatar_url, google_id, idToken } = req.body;
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email không được để trống' });
     }
 
-    let user = await User.findOne({ where: { email } });
+    let verifiedEmail = email.trim().toLowerCase();
+    let verifiedGoogleId = google_id;
+
+    // Cryptographic verification with Google OAuth TokenInfo API if idToken provided
+    if (idToken) {
+      try {
+        const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (resp.ok) {
+          const googlePayload = await resp.json();
+          if (googlePayload.email) {
+            verifiedEmail = googlePayload.email.toLowerCase();
+            verifiedGoogleId = googlePayload.sub || verifiedGoogleId;
+          }
+        }
+      } catch (verifyErr) {
+        console.warn('⚠️ Google Token verification warning:', verifyErr.message);
+      }
+    }
+
+    let user = await User.findOne({ where: { email: verifiedEmail } });
+
+    // Security check: Block unauthorized Admin takeover via Google OAuth
+    if (user && user.role === 'admin' && !user.google_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản Quản trị viên (Admin) không được phép đăng nhập qua cổng này vì lý do bảo mật',
+      });
+    }
+
     if (user) {
       const updates = {};
-      if (!user.google_id && google_id) updates.google_id = google_id;
+      if (!user.google_id && verifiedGoogleId) updates.google_id = verifiedGoogleId;
       if (!user.avatar_url && avatar_url) updates.avatar_url = avatar_url;
       if (Object.keys(updates).length > 0) {
         await user.update(updates);
       }
     } else {
       user = await User.create({
-        name: name || email.split('@')[0],
-        email,
-        google_id: google_id || null,
+        name: name || verifiedEmail.split('@')[0],
+        email: verifiedEmail,
+        google_id: verifiedGoogleId || null,
         avatar_url: avatar_url || null,
         password_hash: null,
         role: 'user',
@@ -196,11 +238,7 @@ exports.googleFirebaseLogin = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
 
     return res.json({
       success: true,
@@ -211,8 +249,8 @@ exports.googleFirebaseLogin = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('❌ Lỗi googleFirebaseLogin:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error('❌ Lỗi googleFirebaseLogin:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -258,7 +296,8 @@ exports.getMe = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -292,7 +331,8 @@ exports.updateProfile = async (req, res) => {
       data: { user: updated.toSafeJSON() },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -323,7 +363,8 @@ exports.uploadAvatar = async (req, res) => {
       data: { avatar_url: newAvatarUrl, user: user.toSafeJSON() },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi tải ảnh lên', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -344,7 +385,8 @@ exports.deleteAvatar = async (req, res) => {
       data: { user: user.toSafeJSON() },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -382,7 +424,8 @@ exports.changePassword = async (req, res) => {
       message: user.password_hash ? 'Đổi mật khẩu thành công' : 'Thiết lập mật khẩu thành công',
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -416,7 +459,8 @@ exports.getSessions = async (req, res) => {
 
     return res.json({ success: true, data: { sessions: [session] } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 

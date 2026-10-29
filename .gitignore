@@ -8,6 +8,11 @@ dist-ssr/
 build/
 */dist/
 
+# User Uploads
+uploads/
+*/uploads/
+!*/uploads/.gitkeep
+
 # Environment variables & Secrets
 .env
 .env.local

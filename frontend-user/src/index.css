@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 /* ============================================
    DESIGN TOKENS - Friendly, Clean & Balanced
    ============================================ */
@@ -145,7 +143,9 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
 .gradient-text {
   background: linear-gradient(135deg, var(--primary), #818cf8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
   font-weight: 700;
 }
 
@@ -1518,6 +1518,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   color: var(--text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1816,6 +1817,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -2825,7 +2827,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   }
 }
 
-.stat-card {
+.burndown-stats-grid .stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -2839,7 +2841,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   box-sizing: border-box;
 }
 
-.stat-card:hover {
+.burndown-stats-grid .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
@@ -2855,7 +2857,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   flex-shrink: 0;
 }
 
-.stat-label {
+.burndown-stats-grid .stat-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -2864,7 +2866,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   margin-bottom: 0.2rem;
 }
 
-.stat-value {
+.burndown-stats-grid .stat-value {
   font-size: 1.45rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -3337,6 +3339,3 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
 .task-history-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
-
-
-

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -9,6 +10,9 @@ import TaskHistoryModal from '../components/TaskHistoryModal';
 import TaskDateHistoryModal from '../components/TaskDateHistoryModal';
 import StatsModal from '../components/StatsModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ProjectsPage from './ProjectsPage';
+
+const ProjectDetailPage = lazy(() => import('./ProjectDetailPage'));
 
 const PRIORITY_LABELS = {
   low: 'Thấp',
@@ -248,6 +252,11 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, onViewHistory, isDra
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isProjectsView = location.pathname.startsWith('/projects');
+  const [selectedProject, setSelectedProject] = useState(null);
+
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({ total: 0, todo: 0, in_progress: 0, done: 0, overdue: 0 });
   const [categories, setCategories] = useState([]);
@@ -526,34 +535,60 @@ export default function Dashboard() {
   const tasksByStatus = (status) => sortedTasks.filter(t => t.status === status);
   const completionPct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
-  if (loading) {
-    return (
-      <div className="page-loader">
-        <div className="spinner" />
-        <p style={{ color: 'var(--text-secondary)' }}>Đang tải bảng nhiệm vụ...</p>
-      </div>
-    );
-  }
+  const handleFilterChange = (status) => {
+    if (isProjectsView) {
+      navigate('/dashboard');
+    }
+    setFilterStatus(status);
+    setFilterCategory('');
+  };
+
+  const handleCategoryChange = (catId) => {
+    if (isProjectsView) {
+      navigate('/dashboard');
+    }
+    setFilterCategory(catId);
+    setFilterStatus('');
+  };
 
   return (
     <div className="app-layout">
       <Sidebar
         categories={categories}
         user={user}
-        activeFilter={filterStatus}
-        activeCategory={filterCategory}
-        onFilterChange={setFilterStatus}
-        onCategoryChange={setFilterCategory}
+        activeFilter={isProjectsView ? '' : filterStatus}
+        activeCategory={isProjectsView ? '' : filterCategory}
+        onFilterChange={handleFilterChange}
+        onCategoryChange={handleCategoryChange}
         onRefresh={fetchAll}
         onOpenStats={() => setShowStatsModal(true)}
+        onSelectProjects={() => setSelectedProject(null)}
         streak={streak}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
       <div className="main-content">
-        {/* Header */}
-        <header className="header">
+        {isProjectsView ? (
+          selectedProject ? (
+            <Suspense fallback={<div className="page-loader"><div className="spinner" /></div>}>
+              <ProjectDetailPage
+                project={selectedProject}
+                onBack={() => setSelectedProject(null)}
+              />
+            </Suspense>
+          ) : (
+            <ProjectsPage onSelectProject={setSelectedProject} />
+          )
+        ) : loading ? (
+          <div className="page-loader">
+            <div className="spinner" />
+            <p style={{ color: 'var(--text-secondary)' }}>Đang tải bảng nhiệm vụ...</p>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
               className="mobile-menu-btn"
@@ -934,6 +969,8 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Task Edit/Create Modal */}

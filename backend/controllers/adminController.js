@@ -130,7 +130,8 @@ exports.getStats = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -151,7 +152,8 @@ exports.getUsers = async (req, res) => {
     });
     return res.json({ success: true, data: { users: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -165,7 +167,8 @@ exports.getUser = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     return res.json({ success: true, data: { user } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -178,7 +181,8 @@ exports.updateUser = async (req, res) => {
     await user.update({ name, is_active });
     return res.json({ success: true, message: 'Cập nhật người dùng thành công', data: { user: user.toSafeJSON() } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -190,7 +194,8 @@ exports.deleteUser = async (req, res) => {
     await user.destroy();
     return res.json({ success: true, message: 'Đã xóa người dùng' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -228,7 +233,8 @@ exports.getAllTasks = async (req, res) => {
 
     return res.json({ success: true, data: { tasks, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -249,7 +255,8 @@ exports.updateTask = async (req, res) => {
     await task.update(updateData);
     return res.json({ success: true, message: 'Cập nhật nhiệm vụ thành công', data: { task } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -261,7 +268,8 @@ exports.deleteTask = async (req, res) => {
     await task.destroy();
     return res.json({ success: true, message: 'Đã xóa nhiệm vụ thành công' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -281,7 +289,8 @@ exports.resetUserPassword = async (req, res) => {
 
     return res.json({ success: true, message: `Đã đặt lại mật khẩu cho người dùng ${user.name}` });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -299,7 +308,8 @@ exports.changeUserRole = async (req, res) => {
     await user.update({ role });
     return res.json({ success: true, message: `Đã đổi vai trò thành ${role === 'admin' ? 'Quản trị viên' : 'Người dùng'}` });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -334,7 +344,8 @@ exports.getSystemInfo = async (req, res) => {
 
     return res.json({ success: true, data: systemInfo });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -346,6 +357,7 @@ exports.cleanupTasks = async (req, res) => {
     });
     return res.json({ success: true, message: `Đã dọn dẹp ${deletedCount} nhiệm vụ đã hủy thành công` });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };

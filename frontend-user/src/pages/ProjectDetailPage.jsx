@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { projectService } from '../services/projectService';
 import { commentService } from '../services/projectService';
 import { useAuth } from '../context/AuthContext';
-import BurndownChart from '../components/BurndownChart';
 import api from '../services/api';
+
+const BurndownChart = lazy(() => import('../components/BurndownChart'));
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
@@ -2946,12 +2947,14 @@ export default function ProjectDetailPage({ project: initialProject, onBack }) {
               />
             )}
             {activeView === 'burndown' && (
-              <BurndownChart
-                project={project}
-                tasks={tasks}
-                sprints={sprints}
-                onSelectTask={t => setDetailTask(t)}
-              />
+              <Suspense fallback={<div className="page-loader"><div className="spinner" /></div>}>
+                <BurndownChart
+                  project={project}
+                  tasks={tasks}
+                  sprints={sprints}
+                  onSelectTask={t => setDetailTask(t)}
+                />
+              </Suspense>
             )}
             {activeView === 'members' && (
               <MembersPanel

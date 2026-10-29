@@ -28,6 +28,7 @@ export default function Sidebar({
   onCategoryChange,
   onRefresh,
   onOpenStats,
+  onSelectProjects,
   streak = 0,
   isOpen,
   onClose,
@@ -234,7 +235,7 @@ export default function Sidebar({
           </div>
 
           {NAV_ITEMS.map(item => {
-            const isActive = activeFilter === item.filter && !activeCategory;
+            const isActive = !location.pathname.startsWith('/projects') && activeFilter === item.filter && !activeCategory;
             return (
               <button
                 key={item.label}
@@ -254,7 +255,11 @@ export default function Sidebar({
           {/* Projects Button */}
           <button
             className={`nav-item ${location.pathname.startsWith('/projects') ? 'active' : ''}`}
-            onClick={() => { navigate('/projects'); if (onClose) onClose(); }}
+            onClick={() => {
+              navigate('/projects');
+              if (onSelectProjects) onSelectProjects();
+              if (onClose) onClose();
+            }}
           >
             <span className="nav-icon">🗂️</span>
             <span>Projects</span>
@@ -263,7 +268,10 @@ export default function Sidebar({
           {/* Quick Statistics Button */}
           <button
             className="nav-item"
-            onClick={() => { onOpenStats(); if (onClose) onClose(); }}
+            onClick={() => {
+              if (onOpenStats) onOpenStats();
+              if (onClose) onClose();
+            }}
           >
             <span className="nav-icon">📊</span>
             <span>Biểu đồ & Thành tựu</span>
@@ -294,7 +302,7 @@ export default function Sidebar({
             </p>
           ) : (
             categories.map(cat => {
-              const isCatActive = activeCategory === cat.id;
+              const isCatActive = !location.pathname.startsWith('/projects') && activeCategory === cat.id;
               return (
                 <div
                   key={cat.id}

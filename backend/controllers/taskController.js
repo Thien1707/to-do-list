@@ -106,7 +106,8 @@ exports.getTasks = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -154,7 +155,8 @@ exports.createTask = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Tạo nhiệm vụ thành công', data: { task: taskWithAll } });
   } catch (err) {
     console.error('❌ Lỗi createTask:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -176,7 +178,8 @@ exports.getTask = async (req, res) => {
 
     return res.json({ success: true, data: { task } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -300,7 +303,8 @@ exports.updateTask = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi updateTask:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -327,7 +331,8 @@ exports.deleteTask = async (req, res) => {
     await task.destroy();
     return res.json({ success: true, message: 'Đã xóa nhiệm vụ' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -411,7 +416,8 @@ exports.updateStatus = async (req, res) => {
     const updatedTask = await Task.findByPk(task.id, { include: TASK_INCLUDE });
     return res.json({ success: true, message: 'Cập nhật trạng thái thành công', data: { task: updatedTask, version: nextVersion, summary } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -461,7 +467,8 @@ exports.getStats = async (req, res) => {
 
     return res.json({ success: true, data: { total, todo, in_progress, done, overdue, streak } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -471,7 +478,8 @@ exports.getCategories = async (req, res) => {
     const categories = await Category.findAll({ where: { user_id: req.user.id }, order: [['name', 'ASC']] });
     return res.json({ success: true, data: { categories } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -482,7 +490,8 @@ exports.createCategory = async (req, res) => {
     const category = await Category.create({ user_id: req.user.id, name, color, icon });
     return res.status(201).json({ success: true, data: { category } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -494,7 +503,8 @@ exports.deleteCategory = async (req, res) => {
     await cat.destroy();
     return res.json({ success: true, message: 'Đã xóa danh mục' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -553,7 +563,8 @@ exports.getTaskHistory = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi getTaskHistory:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -636,6 +647,7 @@ exports.getTasksByDate = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi getTasksByDate:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };

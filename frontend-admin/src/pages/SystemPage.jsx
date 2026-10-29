@@ -227,7 +227,7 @@ export default function SystemPage() {
                   </div>
                 </div>
                 <a
-                  href="http://localhost:3000/api/docs"
+                  href="/api/docs"
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-secondary btn-sm"

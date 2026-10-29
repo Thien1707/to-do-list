@@ -20,8 +20,21 @@ const projectRoutes = require('./routes/projectRoutes');
 
 const app = express();
 
-// Security
-app.use(helmet({ crossOriginResourcePolicy: false }));
+// Trust first proxy (Render, Vercel, Nginx, etc.) for express-rate-limit and secure cookies
+app.set('trust proxy', 1);
+
+// Security: Hide X-Powered-By
+app.disable('x-powered-by');
+
+// Security Headers with Helmet
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
+  hidePoweredBy: true,
+  xssFilter: true,
+  noSniff: true,
+  frameguard: { action: 'deny' },
+}));
 
 // CORS
 const allowedOrigins = [
@@ -36,21 +49,46 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate Limiting
+// General Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10000, // Tăng lên 10,000 requests / 15 phút để thoải mái test và kéo thả
+  max: 10000,
   skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
   message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút' },
 });
 app.use('/api/', limiter);
+
+// Dedicated Strict Rate Limiter for Authentication (Anti Brute-Force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // max 20 attempts
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+  message: { success: false, message: 'Bạn đã thực hiện quá nhiều thao tác xác thực. Vui lòng thử lại sau 15 phút.' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/admin-login', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
+app.use('/api/auth/google-firebase', authLimiter);
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Secure Static Uploads - prevent MIME sniffing and script execution
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'");
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'ignore',
+  index: false,
+}));
 
 // Swagger
 const swaggerOptions = {
@@ -80,10 +118,12 @@ app.get('/api/health', (req, res) => res.json({ success: true, message: 'Server 
 // 404
 app.use((req, res) => res.status(404).json({ success: false, message: 'Endpoint không tồn tại' }));
 
-// Global error handler
+// Safe Global Error Handler (Prevents CWE-209 Information Leakage)
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.message);
-  res.status(err.status || 500).json({ success: false, message: err.message || 'Lỗi server nội bộ' });
+  console.error('❌ Internal Server Error:', err);
+  const status = err.status || (err.name === 'UnauthorizedError' ? 401 : 500);
+  const message = status < 500 ? (err.message || 'Yêu cầu không hợp lệ') : 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.';
+  res.status(status).json({ success: false, message });
 });
 
 module.exports = app;

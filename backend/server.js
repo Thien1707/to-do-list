@@ -26,21 +26,27 @@ const ensureDatabaseExists = async () => {
 const seedAdmin = async () => {
   const admin = await User.findOne({ where: { role: 'admin' } });
   if (!admin) {
+    const adminEmail = process.env.ADMIN_DEFAULT_EMAIL || 'admin@taskmanager.com';
+    const adminPass = process.env.ADMIN_DEFAULT_PASSWORD || 'Admin@123';
     await User.create({
       name: 'Administrator',
-      email: 'admin@taskmanager.com',
-      password_hash: 'Admin@123',
+      email: adminEmail,
+      password_hash: adminPass,
       role: 'admin',
       is_active: true,
     });
-    console.log('✅ Tạo tài khoản admin mặc định: admin@taskmanager.com / Admin@123');
+    console.log(`✅ Khởi tạo tài khoản admin mặc định: ${adminEmail}`);
   }
 };
 
 const start = async () => {
   try {
-    // 1. Tự động tạo database nếu chưa tồn tại
-    await ensureDatabaseExists();
+    // 1. Tự động tạo database nếu chưa tồn tại (nếu trên cloud không có quyền CREATE DATABASE thì bỏ qua)
+    try {
+      await ensureDatabaseExists();
+    } catch (dbErr) {
+      console.warn('⚠️ Ghi chú khởi tạo database (bỏ qua nếu DB đã tạo sẵn):', dbErr.message);
+    }
 
     // 2. Kết nối và đồng bộ bảng Sequelize
     await sequelize.authenticate();

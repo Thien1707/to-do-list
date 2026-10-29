@@ -27,7 +27,8 @@ exports.getComments = async (req, res) => {
 
     return res.json({ success: true, data: { comments } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -61,7 +62,8 @@ exports.createComment = async (req, res) => {
 
     return res.status(201).json({ success: true, message: 'Đã thêm comment', data: { comment: full } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -81,7 +83,8 @@ exports.updateComment = async (req, res) => {
 
     return res.json({ success: true, message: 'Đã cập nhật comment', data: { comment: full } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -99,7 +102,8 @@ exports.deleteComment = async (req, res) => {
     await comment.destroy();
     return res.json({ success: true, message: 'Đã xóa comment' });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -118,6 +122,7 @@ exports.getTaskActivity = async (req, res) => {
 
     return res.json({ success: true, data: { logs } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+    console.error("❌ Lỗi:", err.message);
+    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
