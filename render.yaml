@@ -8,5 +8,5 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
+      # Bắt buộc: thêm trên Render Dashboard (Secret) — không commit mật khẩu vào repo
+      # DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SSL=true, JWT_SECRET, JWT_REFRESH_SECRET, CLIENT_URL
