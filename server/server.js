@@ -3,11 +3,16 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env'), override: true });
 
 const mysql = require('mysql2/promise');
+const { assertProductionEnv, formatError } = require('./config/envCheck');
+
+assertProductionEnv();
+
 const app = require('./app');
 const { sequelize } = require('./models');
 const { User } = require('./models');
 
 const PORT = process.env.PORT || 3000;
+const isProd = process.env.NODE_ENV === 'production';
 
 const ensureDatabaseExists = async () => {
   const connection = await mysql.createConnection({
@@ -41,11 +46,13 @@ const seedAdmin = async () => {
 
 const start = async () => {
   try {
-    // 1. Tự động tạo database nếu chưa tồn tại (nếu trên cloud không có quyền CREATE DATABASE thì bỏ qua)
-    try {
-      await ensureDatabaseExists();
-    } catch (dbErr) {
-      console.warn('⚠️ Ghi chú khởi tạo database (bỏ qua nếu DB đã tạo sẵn):', dbErr.message);
+    // 1. Tạo database chỉ khi dev local (Render/cloud: tạo DB sẵn trên dashboard nhà cung cấp MySQL)
+    if (!isProd) {
+      try {
+        await ensureDatabaseExists();
+      } catch (dbErr) {
+        console.warn('⚠️ Ghi chú khởi tạo database (bỏ qua nếu DB đã tạo sẵn):', formatError(dbErr));
+      }
     }
 
     // 2. Kết nối và đồng bộ bảng Sequelize
@@ -185,9 +192,12 @@ const start = async () => {
       }
     });
   } catch (err) {
-    console.error('\n❌ Không thể khởi động server:', err.message);
-    if (err.message.includes('Access denied')) {
-      console.error('👉 GỢI Ý: Vui lòng điền đúng mật khẩu MySQL trong file server/.env (biến DB_PASS=...)\n');
+    const msg = formatError(err);
+    console.error('\n❌ Không thể khởi động server:', msg);
+    if (msg.includes('Access denied')) {
+      console.error('👉 Kiểm tra DB_USER / DB_PASS trên Render Environment.\n');
+    } else if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('ENOTFOUND')) {
+      console.error('👉 Không kết nối được MySQL: kiểm tra DB_HOST, DB_PORT, firewall và DB_SSL=true (nếu host yêu cầu SSL).\n');
     }
     process.exit(1);
   }
