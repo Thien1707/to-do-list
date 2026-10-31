@@ -69,3 +69,15 @@ npm install
 npm run dev
 ```
 - Client chạy tại: `http://localhost:5173`
+- Đăng nhập người dùng: `/login`
+- Đăng nhập quản trị viên (Admin): `/admin/login`
+
+---
+
+## 🔐 Tài khoản mặc định
+
+| Role | Email | Mật khẩu |
+|---|---|---|
+| Admin | admin@taskmanager.com | Admin@123 |
+
+*(Tài khoản Admin sẽ được tự động khởi tạo khi backend chạy lần đầu)*

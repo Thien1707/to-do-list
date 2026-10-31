@@ -8,13 +8,22 @@ dist-ssr/
 build/
 */dist/
 
-# Environment variables
+# User Uploads
+uploads/
+*/uploads/
+!*/uploads/.gitkeep
+
+# Environment variables & Secrets
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 */.env
+*/.env.*
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
