@@ -27,10 +27,10 @@ async function ensureSchema(sequelize) {
   if (await tableExists(qi, 'categories')) {
     const catCols = await qi.describeTable('categories');
     if (!catCols.icon) {
+      // MySQL không cho DEFAULT trên TEXT — dùng VARCHAR hoặc không default
       await qi.addColumn('categories', 'icon', {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING(500),
         allowNull: true,
-        defaultValue: '📁',
       });
     }
   }
