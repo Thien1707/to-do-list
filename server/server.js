@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env'), override: true
 
 const mysql = require('mysql2/promise');
 const { assertProductionEnv, formatError, isCloudRuntime } = require('./config/envCheck');
+const { getDbConnectionSummary } = require('./config/dbConfig');
 
 assertProductionEnv();
 
@@ -56,6 +57,10 @@ const start = async () => {
     }
 
     // 2. Kết nối và đồng bộ bảng Sequelize
+    const dbInfo = getDbConnectionSummary();
+    console.log(
+      `🔌 Đang kết nối MySQL: ${dbInfo.host}:${dbInfo.port}/${dbInfo.name} (SSL=${dbInfo.ssl})`
+    );
     await sequelize.authenticate();
     console.log('✅ Kết nối MySQL thành công');
 
