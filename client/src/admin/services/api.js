@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getApiBaseURL } from '../../config/apiBase';
+import { createApiClient, getBackendOrigin, toApiPath } from '../../config/apiBase';
 
-const api = axios.create({ baseURL: getApiBaseURL(), withCredentials: true });
+const api = createApiClient();
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
@@ -9,7 +9,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh token on 401, handle 403 session expiration
 api.interceptors.response.use(
   res => res,
   async (error) => {
@@ -22,7 +21,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original?._retry && !isAuthRequest) {
       original._retry = true;
       try {
-        const { data } = await axios.post(`${getApiBaseURL()}/auth/admin-refresh`, {}, { withCredentials: true });
+        const origin = getBackendOrigin();
+        const refreshURL = origin
+          ? `${origin}${toApiPath('/auth/admin-refresh')}`
+          : toApiPath('/auth/admin-refresh');
+        const { data } = await axios.post(refreshURL, {}, { withCredentials: true });
         localStorage.setItem('adminToken', data.data.accessToken);
         if (data.data?.user) {
           localStorage.setItem('adminUser', JSON.stringify(data.data.user));
@@ -36,7 +39,6 @@ api.interceptors.response.use(
       }
     }
 
-    // If 403 Forbidden (e.g. non-admin token or demoted account), logout and return to admin login
     if (error.response?.status === 403 && !isAuthRequest) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');

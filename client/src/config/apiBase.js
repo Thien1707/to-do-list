@@ -1,14 +1,45 @@
-/**
- * Dev: dùng '/api' + proxy Vite → localhost:3000
- * Vercel (rewrite đúng URL Render): để trống VITE_API_BASE_URL → vẫn '/api'
- * Hoặc set VITE_API_BASE_URL=https://your-service.onrender.com (gọi thẳng BE, cần CLIENT_URL trên server)
- */
-const raw = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+import axios from 'axios';
 
-export function getApiBaseURL() {
-  return raw ? `${raw}/api` : '/api';
+/**
+ * Gốc backend không gồm /api (vd https://xxx.onrender.com).
+ * Dev: để trống → request same-origin /api/... (Vite proxy hoặc Vercel rewrite).
+ */
+export function getBackendOrigin() {
+  let root = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+  if (root.endsWith('/api')) root = root.slice(0, -4);
+  return root;
+}
+
+/** Luôn trả path đầy đủ /api/... để tránh lỗi ghép URL của axios. */
+export function toApiPath(url) {
+  if (!url) return url;
+  if (url.startsWith('/api/') || url === '/api') return url;
+  if (url.startsWith('/')) return `/api${url}`;
+  return `/api/${url}`;
 }
 
 export function getUploadsBaseURL() {
-  return raw ? `${raw}/uploads` : '/uploads';
+  const origin = getBackendOrigin();
+  return origin ? `${origin}/uploads` : '/uploads';
+}
+
+export function createApiClient() {
+  const origin = getBackendOrigin();
+  const instance = axios.create({
+    baseURL: origin || undefined,
+    withCredentials: true,
+  });
+
+  instance.interceptors.request.use((config) => {
+    if (config.url) config.url = toApiPath(config.url);
+    return config;
+  });
+
+  return instance;
+}
+
+/** @deprecated dùng createApiClient — giữ export cho refresh token thủ công */
+export function getApiBaseURL() {
+  const origin = getBackendOrigin();
+  return origin ? `${origin}/api` : '/api';
 }
