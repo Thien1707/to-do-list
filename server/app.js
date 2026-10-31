@@ -36,22 +36,19 @@ app.use(helmet({
   frameguard: { action: 'deny' },
 }));
 
-// CORS — unified client (user + /admin) on one origin; legacy env vars still supported
-const clientOrigin =
-  process.env.CLIENT_URL ||
-  process.env.USER_FRONTEND_URL ||
-  'http://localhost:5173';
-const allowedOrigins = [
-  clientOrigin,
-  process.env.ADMIN_FRONTEND_URL || clientOrigin,
-  process.env.USER_FRONTEND_URL || clientOrigin,
-].filter((origin, index, arr) => origin && arr.indexOf(origin) === index);
+// CORS — FE Vercel (kể cả preview *.vercel.app) → BE Render
+const { isOriginAllowed } = require('./config/corsOrigins');
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
+  origin(origin, callback) {
+    if (!origin || isOriginAllowed(origin)) {
+      return callback(null, origin || true);
+    }
+    console.warn('⚠️ CORS blocked origin:', origin);
+    return callback(null, false);
   },
   credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // General Rate Limiting

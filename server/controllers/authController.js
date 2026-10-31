@@ -56,12 +56,16 @@ const removeLocalAvatar = (avatarUrl) => {
 };
 
 const isProd = process.env.NODE_ENV === 'production';
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+const getCookieOptions = () => {
+  // FE (Vercel) và BE (Render) khác domain → refresh cookie cần SameSite=None
+  const crossSite = Boolean(process.env.CLIENT_URL || process.env.USER_FRONTEND_URL);
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd && crossSite ? 'none' : isProd ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+};
 
 const generateTokens = (user) => {
   const payload = { id: user.id, role: user.role, email: user.email };

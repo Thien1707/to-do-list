@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://task-manager-backend.onrender.com/api/:path*"
+      "destination": "https://to-do-list-rx1c.onrender.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://task-manager-backend.onrender.com/uploads/:path*"
+      "destination": "https://to-do-list-rx1c.onrender.com/uploads/:path*"
     },
     {
       "source": "/(.*)",

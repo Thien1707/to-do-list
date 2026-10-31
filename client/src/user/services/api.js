@@ -26,7 +26,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original?._retry && !isAuthRequest) {
       original._retry = true;
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post(`${getApiBaseURL()}/auth/refresh`, {}, { withCredentials: true });
         localStorage.setItem('accessToken', data.data.accessToken);
         original.headers.Authorization = `Bearer ${data.data.accessToken}`;
         return api(original);

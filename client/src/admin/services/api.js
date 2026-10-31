@@ -22,7 +22,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original?._retry && !isAuthRequest) {
       original._retry = true;
       try {
-        const { data } = await axios.post('/api/auth/admin-refresh', {}, { withCredentials: true });
+        const { data } = await axios.post(`${getApiBaseURL()}/auth/admin-refresh`, {}, { withCredentials: true });
         localStorage.setItem('adminToken', data.data.accessToken);
         if (data.data?.user) {
           localStorage.setItem('adminUser', JSON.stringify(data.data.user));
