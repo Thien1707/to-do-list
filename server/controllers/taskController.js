@@ -106,7 +106,7 @@ exports.getTasks = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ Lỗi:", err.message);
+    console.error('❌ getTasks:', err.message, err.original?.sqlMessage || '');
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
@@ -430,7 +430,13 @@ exports.getStats = async (req, res) => {
       Task.count({ where: { user_id: userId, status: 'todo' } }),
       Task.count({ where: { user_id: userId, status: 'in_progress' } }),
       Task.count({ where: { user_id: userId, status: 'done' } }),
-      Task.count({ where: { user_id: userId, status: { [Op.notIn]: ['done', 'cancelled'] }, due_date: { [Op.lt]: new Date() } } }),
+      Task.count({
+        where: {
+          user_id: userId,
+          status: { [Op.notIn]: ['done', 'cancelled'] },
+          due_date: { [Op.lt]: new Date().toISOString().split('T')[0] },
+        },
+      }),
       Task.findAll({
         where: { user_id: userId, status: 'done' },
         attributes: ['updatedAt'],
@@ -467,7 +473,7 @@ exports.getStats = async (req, res) => {
 
     return res.json({ success: true, data: { total, todo, in_progress, done, overdue, streak } });
   } catch (err) {
-    console.error("❌ Lỗi:", err.message);
+    console.error('❌ getStats:', err.message, err.original?.sqlMessage || '');
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
@@ -478,7 +484,7 @@ exports.getCategories = async (req, res) => {
     const categories = await Category.findAll({ where: { user_id: req.user.id }, order: [['name', 'ASC']] });
     return res.json({ success: true, data: { categories } });
   } catch (err) {
-    console.error("❌ Lỗi:", err.message);
+    console.error('❌ getCategories:', err.message, err.original?.sqlMessage || '');
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
