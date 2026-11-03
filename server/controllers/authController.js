@@ -6,6 +6,7 @@ const multer = require('multer');
 const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const { User, Task, Project, ProjectMember } = require('../models');
+const { setCachedUser, invalidateAuthUser } = require('../config/authUserCache');
 
 // Configure Multer storage for avatars with strict security rules
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -83,6 +84,7 @@ exports.register = async (req, res) => {
 
     const user = await User.create({ name, email, password_hash: password, role: 'user' });
     const { accessToken, refreshToken } = generateTokens(user);
+    setCachedUser(user);
     res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.status(201).json({ success: true, message: 'Đăng ký thành công', data: { user: user.toSafeJSON(), accessToken } });
   } catch (err) {
@@ -103,6 +105,7 @@ exports.login = async (req, res) => {
     if (!valid) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
 
     const { accessToken, refreshToken } = generateTokens(user);
+    setCachedUser(user);
     res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, message: 'Đăng nhập thành công', data: { user: user.toSafeJSON(), accessToken } });
   } catch (err) {
@@ -123,6 +126,7 @@ exports.adminLogin = async (req, res) => {
     if (!valid) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
 
     const { accessToken, refreshToken } = generateTokens(user);
+    setCachedUser(user);
     res.cookie('adminRefreshToken', refreshToken, getCookieOptions());
     res.cookie('refreshToken', refreshToken, getCookieOptions());
     return res.json({ success: true, message: 'Đăng nhập admin thành công', data: { user: user.toSafeJSON(), accessToken } });
@@ -168,6 +172,7 @@ exports.refresh = async (req, res) => {
 
 // POST /api/auth/logout
 exports.logout = (req, res) => {
+  if (req.user?.id) invalidateAuthUser(req.user.id);
   res.clearCookie('refreshToken', getCookieOptions());
   res.clearCookie('adminRefreshToken', getCookieOptions());
   return res.json({ success: true, message: 'Đăng xuất thành công' });
@@ -246,6 +251,7 @@ exports.googleFirebaseLogin = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
+    setCachedUser(user);
     res.cookie('refreshToken', refreshToken, getCookieOptions());
 
     return res.json({

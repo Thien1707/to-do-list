@@ -4,8 +4,11 @@ const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const { User } = require('../models');
+const { getCachedUser, setCachedUser } = require('./authUserCache');
 
-// JWT Strategy
+const JWT_USER_ATTRS = ['id', 'role', 'email', 'is_active', 'name', 'avatar_url'];
+
+// JWT Strategy — cache user ngắn hạn để tránh 1 query MySQL (Aiven) mỗi API call
 passport.use(
   new JwtStrategy(
     {
@@ -14,10 +17,15 @@ passport.use(
     },
     async (payload, done) => {
       try {
-        const user = await User.findByPk(payload.id, {
-          attributes: { exclude: ['password_hash'] },
-        });
+        const cached = getCachedUser(payload.id);
+        if (cached) {
+          if (!cached.is_active) return done(null, false);
+          return done(null, cached);
+        }
+
+        const user = await User.findByPk(payload.id, { attributes: JWT_USER_ATTRS });
         if (!user || !user.is_active) return done(null, false);
+        setCachedUser(user);
         return done(null, user);
       } catch (err) {
         return done(err, false);

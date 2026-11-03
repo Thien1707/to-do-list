@@ -1,6 +1,6 @@
 'use strict';
 const { Task, Category, User, Sprint, ActivityLog, ProjectMember, Project, TaskHistory, sequelize } = require('../models');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
 
 const TASK_INCLUDE = [
   { model: Category, attributes: ['id', 'name', 'color', 'icon'], required: false },
@@ -9,6 +9,121 @@ const TASK_INCLUDE = [
   { model: User, as: 'lastEditor', attributes: ['id', 'name', 'email', 'avatar_url'], required: false },
   { model: Sprint, attributes: ['id', 'name', 'status'], required: false },
 ];
+
+function computeStreakFromDates(dateStrings) {
+  if (!dateStrings?.length) return 0;
+  const dates = new Set(dateStrings.map((d) => String(d).slice(0, 10)));
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  let checkDate = dates.has(todayStr) ? new Date(today) : dates.has(yesterdayStr) ? yesterday : null;
+  if (!checkDate) return 0;
+
+  let streak = 0;
+  while (true) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    if (!dates.has(dateStr)) break;
+    streak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+  return streak;
+}
+
+async function fetchUserTaskStats(userId) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [agg] = await sequelize.query(
+    `SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN status = 'todo' THEN 1 ELSE 0 END) AS todo,
+      SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done,
+      SUM(CASE WHEN status NOT IN ('done','cancelled') AND due_date IS NOT NULL AND due_date < :today THEN 1 ELSE 0 END) AS overdue
+    FROM tasks WHERE user_id = :userId`,
+    { replacements: { userId, today: todayStr }, type: QueryTypes.SELECT }
+  );
+
+  const since = new Date();
+  since.setDate(since.getDate() - 120);
+  const doneRows = await sequelize.query(
+    `SELECT DISTINCT DATE(updatedAt) AS d
+     FROM tasks
+     WHERE user_id = :userId AND status = 'done' AND updatedAt >= :since`,
+    { replacements: { userId, since }, type: QueryTypes.SELECT }
+  );
+  const dateStrings = doneRows.map((r) => {
+    const d = r.d;
+    if (d instanceof Date) return d.toISOString().split('T')[0];
+    return String(d).slice(0, 10);
+  });
+
+  return {
+    total: Number(agg?.total) || 0,
+    todo: Number(agg?.todo) || 0,
+    in_progress: Number(agg?.in_progress) || 0,
+    done: Number(agg?.done) || 0,
+    overdue: Number(agg?.overdue) || 0,
+    streak: computeStreakFromDates(dateStrings),
+  };
+}
+
+async function buildTaskWhereForUser(req) {
+  const {
+    status,
+    priority,
+    category_id,
+    project_id,
+    sprint_id,
+    assignee_id,
+    search,
+    is_edited,
+    due_date,
+    date_from,
+    date_to,
+    story_points,
+  } = req.query;
+
+  const where = {};
+  if (project_id) {
+    const member = await ProjectMember.findOne({ where: { project_id, user_id: req.user.id } });
+    if (!member) return { error: { status: 403, message: 'Không có quyền truy cập project' } };
+    where.project_id = project_id;
+  } else {
+    where.user_id = req.user.id;
+  }
+
+  if (status) where.status = status;
+  if (priority) where.priority = priority;
+  if (category_id) where.category_id = category_id;
+  if (sprint_id !== undefined) where.sprint_id = sprint_id === 'null' ? null : sprint_id;
+  if (assignee_id) where.assignee_id = assignee_id;
+  if (story_points) where.story_points = story_points;
+
+  if (is_edited === 'true' || is_edited === 'edited') {
+    where.is_edited = true;
+  } else if (is_edited === 'false' || is_edited === 'unedited') {
+    where.is_edited = false;
+  }
+
+  if (due_date) {
+    where.due_date = due_date;
+  } else if (date_from && date_to) {
+    where.due_date = { [Op.between]: [date_from, date_to] };
+  } else if (date_from) {
+    where.due_date = { [Op.gte]: date_from };
+  } else if (date_to) {
+    where.due_date = { [Op.lte]: date_to };
+  }
+
+  if (search && search.trim()) {
+    const q = `%${search.trim()}%`;
+    where[Op.or] = [{ title: { [Op.like]: q } }, { description: { [Op.like]: q } }];
+  }
+
+  return { where };
+}
 
 const logActivity = async (task, userId, action, field, oldVal, newVal) => {
   if (!task.project_id) return;
@@ -25,89 +140,95 @@ const logActivity = async (task, userId, action, field, oldVal, newVal) => {
   });
 };
 
-// GET /api/tasks
-exports.getTasks = async (req, res) => {
+// GET /api/tasks/dashboard — một request thay cho tasks + stats + categories
+exports.getDashboard = async (req, res) => {
   try {
-    const {
-      status,
-      priority,
-      category_id,
-      project_id,
-      sprint_id,
-      assignee_id,
-      search,
-      is_edited,
-      due_date,
-      date_from,
-      date_to,
-      sort = 'createdAt',
-      order = 'DESC',
-      page = 1,
-      limit = 50,
-    } = req.query;
-
-    const where = {};
-    // If project_id is given, check membership first
-    if (project_id) {
-      const member = await ProjectMember.findOne({ where: { project_id, user_id: req.user.id } });
-      if (!member) return res.status(403).json({ success: false, message: 'Không có quyền truy cập project' });
-      where.project_id = project_id;
-    } else {
-      where.user_id = req.user.id;
+    const { sort = 'createdAt', order = 'DESC', page = 1, limit = 100 } = req.query;
+    const built = await buildTaskWhereForUser(req);
+    if (built.error) {
+      return res.status(built.error.status).json({ success: false, message: built.error.message });
     }
+    const { where } = built;
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (pageNum - 1) * limitNum;
+    const sortCol = ['createdAt', 'updatedAt', 'due_date', 'priority', 'title'].includes(sort) ? sort : 'createdAt';
+    const sortDir = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-    if (status) where.status = status;
-    if (priority) where.priority = priority;
-    if (category_id) where.category_id = category_id;
-    if (sprint_id !== undefined) where.sprint_id = sprint_id === 'null' ? null : sprint_id;
-    if (assignee_id) where.assignee_id = assignee_id;
-
-    // Filter by edit history status
-    if (is_edited === 'true' || is_edited === 'edited') {
-      where.is_edited = true;
-    } else if (is_edited === 'false' || is_edited === 'unedited') {
-      where.is_edited = false;
-    }
-
-    // Filter by dates
-    if (due_date) {
-      where.due_date = due_date;
-    } else if (date_from && date_to) {
-      where.due_date = { [Op.between]: [date_from, date_to] };
-    } else if (date_from) {
-      where.due_date = { [Op.gte]: date_from };
-    } else if (date_to) {
-      where.due_date = { [Op.lte]: date_to };
-    }
-
-    // Keyword search across title and description
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`;
-      where[Op.or] = [
-        { title: { [Op.like]: q } },
-        { description: { [Op.like]: q } },
-      ];
-    }
-
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const { count, rows } = await Task.findAndCountAll({
-      where,
-      include: TASK_INCLUDE,
-      order: [[sort, order.toUpperCase()]],
-      limit: parseInt(limit),
-      offset,
-    });
+    const [count, rows, stats, categories] = await Promise.all([
+      Task.count({ where }),
+      Task.findAll({
+        where,
+        include: TASK_INCLUDE,
+        order: [[sortCol, sortDir]],
+        limit: limitNum,
+        offset,
+      }),
+      fetchUserTaskStats(req.user.id),
+      Category.findAll({ where: { user_id: req.user.id }, order: [['name', 'ASC']] }),
+    ]);
 
     return res.json({
       success: true,
       data: {
         tasks: rows,
-        pagination: { total: count, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(count / parseInt(limit)) },
+        stats,
+        categories,
+        pagination: {
+          total: count,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(count / limitNum) || 1,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('❌ getDashboard:', err.message, err.original?.sqlMessage || '');
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// GET /api/tasks
+exports.getTasks = async (req, res) => {
+  try {
+    const { sort = 'createdAt', order = 'DESC', page = 1, limit = 50 } = req.query;
+    const built = await buildTaskWhereForUser(req);
+    if (built.error) {
+      return res.status(built.error.status).json({ success: false, message: built.error.message });
+    }
+    const { where } = built;
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (pageNum - 1) * limitNum;
+    const sortCol = ['createdAt', 'updatedAt', 'due_date', 'priority', 'title'].includes(sort) ? sort : 'createdAt';
+    const sortDir = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const [count, rows] = await Promise.all([
+      Task.count({ where }),
+      Task.findAll({
+        where,
+        include: TASK_INCLUDE,
+        order: [[sortCol, sortDir]],
+        limit: limitNum,
+        offset,
+      }),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        tasks: rows,
+        pagination: {
+          total: count,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(count / limitNum) || 1,
+        },
       },
     });
   } catch (err) {
     console.error('❌ getTasks:', err.message, err.original?.sqlMessage || '');
-    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -424,57 +545,11 @@ exports.updateStatus = async (req, res) => {
 // GET /api/tasks/stats
 exports.getStats = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const [total, todo, in_progress, done, overdue, completedTasks] = await Promise.all([
-      Task.count({ where: { user_id: userId } }),
-      Task.count({ where: { user_id: userId, status: 'todo' } }),
-      Task.count({ where: { user_id: userId, status: 'in_progress' } }),
-      Task.count({ where: { user_id: userId, status: 'done' } }),
-      Task.count({
-        where: {
-          user_id: userId,
-          status: { [Op.notIn]: ['done', 'cancelled'] },
-          due_date: { [Op.lt]: new Date().toISOString().split('T')[0] },
-        },
-      }),
-      Task.findAll({
-        where: { user_id: userId, status: 'done' },
-        attributes: ['updatedAt'],
-        order: [['updatedAt', 'DESC']],
-      }),
-    ]);
-
-    // Calculate account-specific streak based on completed tasks
-    let streak = 0;
-    if (completedTasks && completedTasks.length > 0) {
-      const dates = new Set(
-        completedTasks.map(t => new Date(t.updatedAt).toISOString().split('T')[0])
-      );
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-      let checkDate = dates.has(todayStr) ? today : (dates.has(yesterdayStr) ? yesterday : null);
-
-      if (checkDate) {
-        while (true) {
-          const dateStr = checkDate.toISOString().split('T')[0];
-          if (dates.has(dateStr)) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-          } else {
-            break;
-          }
-        }
-      }
-    }
-
-    return res.json({ success: true, data: { total, todo, in_progress, done, overdue, streak } });
+    const stats = await fetchUserTaskStats(req.user.id);
+    return res.json({ success: true, data: stats });
   } catch (err) {
     console.error('❌ getStats:', err.message, err.original?.sqlMessage || '');
-    return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
@@ -606,6 +681,8 @@ exports.getTasksByDate = async (req, res) => {
         is_edited: true,
       },
       include: TASK_INCLUDE,
+      limit: 120,
+      order: [['updatedAt', 'DESC']],
     });
 
     const candidateIds = allUserTasks.map(t => t.id);

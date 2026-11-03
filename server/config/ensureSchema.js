@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { isCloudRuntime } = require('./envCheck');
 
 async function tableExists(qi, tableName) {
   try {
@@ -13,15 +14,19 @@ async function tableExists(qi, tableName) {
 
 /** Đồng bộ bảng + bổ sung cột thiếu (Aiven/DB cũ thường thiếu cột so với model). */
 async function ensureSchema(sequelize) {
-  await sequelize.sync();
+  const runFullSync =
+    String(process.env.SCHEMA_SYNC || '').toLowerCase() === 'true' || !isCloudRuntime();
 
   const qi = sequelize.getQueryInterface();
 
-  if (!(await tableExists(qi, 'categories'))) {
-    await sequelize.models.Category.sync();
-  }
-  if (!(await tableExists(qi, 'tasks'))) {
-    await sequelize.models.Task.sync();
+  if (runFullSync) {
+    await sequelize.sync();
+    if (!(await tableExists(qi, 'categories'))) {
+      await sequelize.models.Category.sync();
+    }
+    if (!(await tableExists(qi, 'tasks'))) {
+      await sequelize.models.Task.sync();
+    }
   }
 
   if (await tableExists(qi, 'categories')) {

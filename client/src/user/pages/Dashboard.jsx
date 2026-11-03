@@ -331,21 +331,18 @@ export default function Dashboard() {
       if (filterDate) params.due_date = filterDate;
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
-      const [tasksRes, statsRes, catsRes] = await Promise.all([
-        api.get('/tasks', { params }),
-        api.get('/tasks/stats'),
-        api.get('/tasks/categories'),
-      ]);
+      const { data: body } = await api.get('/tasks/dashboard', { params });
+      const payload = body.data;
 
-      setTasks(tasksRes.data.data.tasks);
-      setStats(statsRes.data.data);
-      if (statsRes.data?.data?.streak !== undefined) {
-        setStreak(statsRes.data.data.streak);
+      setTasks(payload.tasks);
+      setStats(payload.stats);
+      if (payload.stats?.streak !== undefined) {
+        setStreak(payload.stats.streak);
         if (user?.id) {
-          localStorage.setItem(`user_streak_${user.id}`, String(statsRes.data.data.streak));
+          localStorage.setItem(`user_streak_${user.id}`, String(payload.stats.streak));
         }
       }
-      setCategories(catsRes.data.data.categories);
+      setCategories(payload.categories);
     } catch {
       toast.error('Không thể tải dữ liệu nhiệm vụ');
     } finally {

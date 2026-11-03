@@ -7,6 +7,7 @@ const commentCtrl = require('../controllers/commentController');
 
 router.use(authenticate);
 
+router.get('/dashboard', taskCtrl.getDashboard);
 router.get('/stats', taskCtrl.getStats);
 router.get('/categories', taskCtrl.getCategories);
 router.post('/categories', taskCtrl.createCategory);

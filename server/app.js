@@ -1,6 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env'), override: true });
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -19,9 +20,12 @@ const adminRoutes = require('./routes/adminRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 
 const app = express();
+const isProd = process.env.NODE_ENV === 'production';
 
 // Trust first proxy (Render, Vercel, Nginx, etc.) for express-rate-limit and secure cookies
 app.set('trust proxy', 1);
+
+app.use(compression());
 
 // Security: Hide X-Powered-By
 app.disable('x-powered-by');
@@ -95,21 +99,23 @@ app.use('/uploads', (req, res, next) => {
   index: false,
 }));
 
-// Swagger
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: { title: 'Task Manager API', version: '1.0.0', description: 'API tài liệu cho ứng dụng Quản lý Nhiệm vụ' },
-    servers: [{ url: `http://localhost:${process.env.PORT || 3000}` }],
-    components: {
-      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
+// Swagger — chỉ bật khi dev để giảm thời gian khởi động production
+if (!isProd) {
+  const swaggerOptions = {
+    definition: {
+      openapi: '3.0.0',
+      info: { title: 'Task Manager API', version: '1.0.0', description: 'API tài liệu cho ứng dụng Quản lý Nhiệm vụ' },
+      servers: [{ url: `http://localhost:${process.env.PORT || 3000}` }],
+      components: {
+        securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
+      },
+      security: [{ bearerAuth: [] }],
     },
-    security: [{ bearerAuth: [] }],
-  },
-  apis: ['./routes/*.js'],
-};
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: 'Task Manager API Docs' }));
+    apis: ['./routes/*.js'],
+  };
+  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: 'Task Manager API Docs' }));
+}
 
 // Routes
 app.use('/api/auth', authRoutes);

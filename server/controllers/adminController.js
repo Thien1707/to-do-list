@@ -1,101 +1,128 @@
 'use strict';
 const { User, Task, Category } = require('../models');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 // GET /api/admin/stats (Deep Analytics for Admin)
 exports.getStats = async (req, res) => {
   try {
     const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
 
-    // Basic Counts
-    const [
-      totalUsers,
-      totalTasks,
-      doneTasks,
-      inProgressTasks,
-      todoTasks,
-      cancelledTasks,
-      overdueTasks,
-      newUsersToday,
-      googleUsers,
-      emailUsers,
-    ] = await Promise.all([
-      User.count({ where: { role: 'user' } }),
-      Task.count(),
-      Task.count({ where: { status: 'done' } }),
-      Task.count({ where: { status: 'in_progress' } }),
-      Task.count({ where: { status: 'todo' } }),
-      Task.count({ where: { status: 'cancelled' } }),
-      Task.count({ where: { status: { [Op.notIn]: ['done', 'cancelled'] }, due_date: { [Op.lt]: new Date() } } }),
-      User.count({ where: { role: 'user', createdAt: { [Op.gte]: todayStart } } }),
-      User.count({ where: { google_id: { [Op.ne]: null } } }),
-      User.count({ where: { google_id: null } }),
+    const [taskAgg, userAgg, createdRows, doneRows, topCatRows, topUserRows] = await Promise.all([
+      sequelize.query(
+        `SELECT
+          COUNT(*) AS totalTasks,
+          SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS doneTasks,
+          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS inProgressTasks,
+          SUM(CASE WHEN status = 'todo' THEN 1 ELSE 0 END) AS todoTasks,
+          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelledTasks,
+          SUM(CASE WHEN status NOT IN ('done','cancelled') AND due_date IS NOT NULL AND due_date < :today THEN 1 ELSE 0 END) AS overdueTasks,
+          SUM(CASE WHEN priority = 'urgent' THEN 1 ELSE 0 END) AS urgentCount,
+          SUM(CASE WHEN priority = 'high' THEN 1 ELSE 0 END) AS highCount,
+          SUM(CASE WHEN priority = 'medium' THEN 1 ELSE 0 END) AS mediumCount,
+          SUM(CASE WHEN priority = 'low' THEN 1 ELSE 0 END) AS lowCount
+        FROM tasks`,
+        { replacements: { today: todayStr }, type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT
+          SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS totalUsers,
+          SUM(CASE WHEN role = 'user' AND createdAt >= :todayStart THEN 1 ELSE 0 END) AS newUsersToday,
+          SUM(CASE WHEN google_id IS NOT NULL THEN 1 ELSE 0 END) AS googleUsers,
+          SUM(CASE WHEN google_id IS NULL THEN 1 ELSE 0 END) AS emailUsers
+        FROM users`,
+        { replacements: { todayStart }, type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT DATE(createdAt) AS d, COUNT(*) AS c FROM tasks WHERE createdAt >= :since GROUP BY DATE(createdAt)`,
+        { replacements: { since: weekStart }, type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT DATE(updatedAt) AS d, COUNT(*) AS c FROM tasks WHERE status = 'done' AND updatedAt >= :since GROUP BY DATE(updatedAt)`,
+        { replacements: { since: weekStart }, type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT c.id, c.name, c.color, c.icon, COUNT(t.id) AS count
+         FROM categories c
+         LEFT JOIN tasks t ON t.category_id = c.id
+         GROUP BY c.id, c.name, c.color, c.icon
+         ORDER BY count DESC
+         LIMIT 6`,
+        { type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT u.id, u.name, u.email, u.avatar_url,
+                COUNT(t.id) AS totalTasks,
+                SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS doneTasks
+         FROM users u
+         LEFT JOIN tasks t ON t.user_id = u.id
+         WHERE u.role = 'user'
+         GROUP BY u.id, u.name, u.email, u.avatar_url
+         ORDER BY totalTasks DESC
+         LIMIT 5`,
+        { type: QueryTypes.SELECT }
+      ),
     ]);
 
-    // Priority Breakdown
-    const [urgentCount, highCount, mediumCount, lowCount] = await Promise.all([
-      Task.count({ where: { priority: 'urgent' } }),
-      Task.count({ where: { priority: 'high' } }),
-      Task.count({ where: { priority: 'medium' } }),
-      Task.count({ where: { priority: 'low' } }),
-    ]);
+    const t = taskAgg[0] || {};
+    const u = userAgg[0] || {};
+    const totalUsers = Number(u.totalUsers) || 0;
+    const totalTasks = Number(t.totalTasks) || 0;
+    const doneTasks = Number(t.doneTasks) || 0;
+    const inProgressTasks = Number(t.inProgressTasks) || 0;
+    const todoTasks = Number(t.todoTasks) || 0;
+    const cancelledTasks = Number(t.cancelledTasks) || 0;
+    const overdueTasks = Number(t.overdueTasks) || 0;
+    const newUsersToday = Number(u.newUsersToday) || 0;
+    const googleUsers = Number(u.googleUsers) || 0;
+    const emailUsers = Number(u.emailUsers) || 0;
+    const urgentCount = Number(t.urgentCount) || 0;
+    const highCount = Number(t.highCount) || 0;
+    const mediumCount = Number(t.mediumCount) || 0;
+    const lowCount = Number(t.lowCount) || 0;
 
-    // Top Categories
-    const categories = await Category.findAll({
-      attributes: ['id', 'name', 'color', 'icon'],
-      include: [{ model: Task, attributes: ['id'] }],
-      limit: 6,
-    });
-    const topCategories = categories
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        color: c.color,
-        icon: c.icon,
-        count: c.Tasks ? c.Tasks.length : 0,
-      }))
-      .sort((a, b) => b.count - a.count);
+    const topCategories = topCatRows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      icon: c.icon,
+      count: Number(c.count) || 0,
+    }));
 
-    // 7 Days Activity Trend
+    const createdMap = new Map(
+      createdRows.map((r) => [String(r.d).slice(0, 10), Number(r.c) || 0])
+    );
+    const doneMap = new Map(doneRows.map((r) => [String(r.d).slice(0, 10), Number(r.c) || 0]));
     const activity7Days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-      const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-
+      const key = d.toISOString().split('T')[0];
       const dayLabel = `${d.getDate()}/${d.getMonth() + 1}`;
-      const [created, done] = await Promise.all([
-        Task.count({ where: { createdAt: { [Op.between]: [startOfDay, endOfDay] } } }),
-        Task.count({ where: { status: 'done', updatedAt: { [Op.between]: [startOfDay, endOfDay] } } }),
-      ]);
-      activity7Days.push({ date: dayLabel, created, done });
+      activity7Days.push({
+        date: dayLabel,
+        created: createdMap.get(key) || 0,
+        done: doneMap.get(key) || 0,
+      });
     }
 
-    // Top Active Users
-    const activeUsersList = await User.findAll({
-      where: { role: 'user' },
-      attributes: ['id', 'name', 'email', 'avatar_url'],
-      include: [{ model: Task, attributes: ['id', 'status'] }],
-      limit: 5,
+    const topUsers = topUserRows.map((row) => {
+      const total = Number(row.totalTasks) || 0;
+      const done = Number(row.doneTasks) || 0;
+      return {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        avatar_url: row.avatar_url,
+        totalTasks: total,
+        doneTasks: done,
+        rate: total ? Math.round((done / total) * 100) : 0,
+      };
     });
-
-    const topUsers = activeUsersList
-      .map(u => {
-        const userTasks = u.Tasks || [];
-        const userDone = userTasks.filter(t => t.status === 'done').length;
-        return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          avatar_url: u.avatar_url,
-          totalTasks: userTasks.length,
-          doneTasks: userDone,
-          rate: userTasks.length ? Math.round((userDone / userTasks.length) * 100) : 0,
-        };
-      })
-      .sort((a, b) => b.totalTasks - a.totalTasks);
 
     const completionRate = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
@@ -143,14 +170,23 @@ exports.getUsers = async (req, res) => {
     if (search) where[Op.or] = [{ name: { [Op.like]: `%${search}%` } }, { email: { [Op.like]: `%${search}%` } }];
     if (is_active !== undefined) where.is_active = is_active === 'true';
 
-    const { count, rows } = await User.findAndCountAll({
-      where,
-      attributes: { exclude: ['password_hash', 'google_id'] },
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: (parseInt(page) - 1) * parseInt(limit),
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (pageNum - 1) * limitNum;
+    const [count, rows] = await Promise.all([
+      User.count({ where }),
+      User.findAll({
+        where,
+        attributes: { exclude: ['password_hash', 'google_id'] },
+        order: [['createdAt', 'DESC']],
+        limit: limitNum,
+        offset,
+      }),
+    ]);
+    return res.json({
+      success: true,
+      data: { users: rows, pagination: { total: count, page: pageNum, pages: Math.ceil(count / limitNum) || 1 } },
     });
-    return res.json({ success: true, data: { users: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
     console.error("❌ Lỗi:", err.message);
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
@@ -214,16 +250,17 @@ exports.getAllTasks = async (req, res) => {
       ];
     }
 
-    const { count, rows } = await Task.findAndCountAll({
-      where,
-      include: [
-        { model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatar_url'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatar_url'], required: false },
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: (parseInt(page) - 1) * parseInt(limit),
-    });
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (pageNum - 1) * limitNum;
+    const include = [
+      { model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatar_url'] },
+      { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatar_url'], required: false },
+    ];
+    const [count, rows] = await Promise.all([
+      Task.count({ where }),
+      Task.findAll({ where, include, order: [['createdAt', 'DESC']], limit: limitNum, offset }),
+    ]);
 
     const tasks = rows.map(t => {
       const plain = t.toJSON();
@@ -231,7 +268,10 @@ exports.getAllTasks = async (req, res) => {
       return plain;
     });
 
-    return res.json({ success: true, data: { tasks, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
+    return res.json({
+      success: true,
+      data: { tasks, pagination: { total: count, page: pageNum, pages: Math.ceil(count / limitNum) || 1 } },
+    });
   } catch (err) {
     console.error("❌ Lỗi:", err.message);
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
