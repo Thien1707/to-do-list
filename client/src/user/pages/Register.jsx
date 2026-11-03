@@ -92,7 +92,10 @@ export default function Register() {
       } else if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/configuration-not-found') {
         toast.error('Chưa bật Google Provider trên Firebase! Hãy vào Firebase Console > Authentication > Sign-in method > Bật Google.', { duration: 6000 });
       } else if (err.code === 'auth/unauthorized-domain') {
-        toast.error('Miền này chưa được thêm vào Authorized Domains trên Firebase Console!', { duration: 6000 });
+        toast.error(
+          'Domain Vercel chưa có trong Firebase (project datt-04 → Authentication → Authorized domains).',
+          { duration: 7000 }
+        );
       } else {
         toast.error(err.response?.data?.message || err.message || 'Đăng ký bằng Google thất bại');
       }
