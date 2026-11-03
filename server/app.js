@@ -26,17 +26,7 @@ app.set('trust proxy', 1);
 // Security: Hide X-Powered-By
 app.disable('x-powered-by');
 
-// Security Headers with Helmet
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false,
-  hidePoweredBy: true,
-  xssFilter: true,
-  noSniff: true,
-  frameguard: { action: 'deny' },
-}));
-
-// CORS — FE Vercel (kể cả preview *.vercel.app) → BE Render
+// CORS trước Helmet — FE Vercel (*.vercel.app) gọi thẳng BE Render
 const { isOriginAllowed } = require('./config/corsOrigins');
 app.use(cors({
   origin(origin, callback) {
@@ -48,7 +38,20 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type'],
+  optionsSuccessStatus: 204,
+  preflightContinue: false,
+}));
+
+// Security Headers with Helmet
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+  hidePoweredBy: true,
+  xssFilter: true,
+  noSniff: true,
+  frameguard: { action: 'deny' },
 }));
 
 // General Rate Limiting
