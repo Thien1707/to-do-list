@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { auth, googleProvider } from '../config/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { startGoogleSignIn } from '../utils/googleAuth';
 import toast from 'react-hot-toast';
 
 export default function Register() {
@@ -66,8 +65,11 @@ export default function Register() {
       toast.success('Đăng ký tài khoản thành công!');
       navigate('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại';
-      toast.error(msg);
+      let msg = err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại';
+      if (err.response?.status === 404) {
+        msg = 'API backend 404 — kiểm tra RENDER_API_ORIGIN trên Vercel (URL Render đúng) rồi redeploy.';
+      }
+      toast.error(msg, { duration: err.response?.status === 404 ? 8000 : 4000 });
       if (msg.toLowerCase().includes('email')) {
         setErrors(prev => ({ ...prev, email: msg }));
       }
@@ -79,12 +81,17 @@ export default function Register() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await startGoogleSignIn();
+      if (!result) return;
       await loginWithGoogleFirebase(result.user);
       toast.success(`Chào mừng, ${result.user.displayName || result.user.email}! 👋`);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       console.error('Google Sign-in error:', err);
+      if (err.response?.status === 404) {
+        toast.error('Backend API 404 — cấu hình RENDER_API_ORIGIN trên Vercel.', { duration: 8000 });
+        return;
+      }
       if (err.code === 'auth/popup-closed-by-user') {
         toast('Đã đóng cửa sổ đăng nhập Google');
       } else if (err.code === 'auth/cancelled-popup-request') {

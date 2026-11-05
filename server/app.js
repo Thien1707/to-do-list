@@ -51,6 +51,7 @@ app.use(cors({
 // Security Headers with Helmet
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: false,
   contentSecurityPolicy: false,
   hidePoweredBy: true,
   xssFilter: true,
@@ -81,6 +82,8 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/admin-login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
 app.use('/api/auth/google-firebase', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));

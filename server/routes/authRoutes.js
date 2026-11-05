@@ -44,6 +44,26 @@ router.post('/register', validateRegister, authCtrl.register);
  */
 router.post('/login', validateLogin, authCtrl.login);
 
+router.post(
+  '/forgot-password',
+  [body('email').isEmail().withMessage('Email không hợp lệ'), handleValidation],
+  authCtrl.forgotPassword
+);
+
+router.post(
+  '/reset-password',
+  [
+    body('token').notEmpty().withMessage('Token không hợp lệ'),
+    body('new_password').isLength({ min: 6 }).withMessage('Mật khẩu tối thiểu 6 ký tự'),
+    body('confirm_password').custom((val, { req }) => {
+      if (val !== req.body.new_password) throw new Error('Mật khẩu xác nhận không khớp');
+      return true;
+    }),
+    handleValidation,
+  ],
+  authCtrl.resetPassword
+);
+
 /**
  * @swagger
  * /api/auth/admin-login:

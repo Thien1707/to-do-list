@@ -170,7 +170,46 @@ const sendDueTasksReminder = async (toEmail, userName, tasks) => {
   }
 };
 
+const sendPasswordResetEmail = async (toEmail, userName, resetUrl) => {
+  const transporter = getTransporter();
+  if (!transporter) {
+    return {
+      success: false,
+      notConfigured: true,
+      message: 'Chưa cấu hình EMAIL_USER / EMAIL_PASS trên server',
+    };
+  }
+
+  const htmlContent = `
+    <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+      <h2 style="color:#4f46e5;">TaskFlow — Đặt lại mật khẩu</h2>
+      <p>Xin chào <strong>${userName || 'bạn'}</strong>,</p>
+      <p>Nhấn nút bên dưới để đặt mật khẩu mới (link có hiệu lực 1 giờ):</p>
+      <p style="text-align:center;margin:28px 0;">
+        <a href="${resetUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+          Đặt lại mật khẩu
+        </a>
+      </p>
+      <p style="font-size:12px;color:#6b7280;">Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
+    </div>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"TaskFlow" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: '[TaskFlow] Đặt lại mật khẩu',
+      html: htmlContent,
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error('❌ [EmailService] reset password:', err.message);
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getTransporter,
   sendDueTasksReminder,
+  sendPasswordResetEmail,
 };

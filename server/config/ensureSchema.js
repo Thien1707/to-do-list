@@ -88,6 +88,8 @@ async function ensureSchema(sequelize) {
     await addUser('department', { type: DataTypes.STRING(100), allowNull: true });
     await addUser('theme_preference', { type: DataTypes.STRING(20), defaultValue: 'light' });
     await addUser('notification_settings', { type: DataTypes.JSON, allowNull: true });
+    await addUser('password_reset_token', { type: DataTypes.STRING(64), allowNull: true });
+    await addUser('password_reset_expires', { type: DataTypes.DATE, allowNull: true });
     if (userCols.avatar_url && userCols.avatar_url.type !== 'LONGTEXT') {
       try {
         await qi.changeColumn('users', 'avatar_url', { type: DataTypes.TEXT('long'), allowNull: true });

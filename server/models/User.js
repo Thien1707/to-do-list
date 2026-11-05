@@ -26,6 +26,8 @@ const User = sequelize.define('User', {
     },
   },
   is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+  password_reset_token: { type: DataTypes.STRING(64), allowNull: true },
+  password_reset_expires: { type: DataTypes.DATE, allowNull: true },
 }, {
   tableName: 'users',
   hooks: {
