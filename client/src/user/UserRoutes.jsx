@@ -19,7 +19,11 @@ function PageFallback() {
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  if (!user && !(token && storedUser)) {
+    return <Navigate to="/login" replace />;
+  }
   return children;
 }
 

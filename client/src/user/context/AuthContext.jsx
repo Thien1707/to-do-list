@@ -1,21 +1,27 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRedirectResult } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { auth } from '../config/firebase';
+import {
+  getGoogleRedirectResultOnce,
+  GOOGLE_REDIRECT_PENDING_KEY,
+  waitForFirebaseUser,
+} from '../utils/googleAuth';
 
 const AuthContext = createContext(null);
 
+function readStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user'));
+  } catch {
+    return null;
+  }
+}
+
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user'));
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(() => readStoredUser());
   const [bootstrapping, setBootstrapping] = useState(true);
   const [googleRedirectPending, setGoogleRedirectPending] = useState(false);
 
@@ -38,29 +44,51 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
+
     (async () => {
+      const pendingGoogle = sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1';
+
       try {
-        const result = await getRedirectResult(auth);
-        if (!active) return;
-        if (result?.user) {
-          setGoogleRedirectPending(true);
-          await loginWithGoogleFirebase(result.user);
-          toast.success(`Xin chào, ${result.user.displayName || result.user.email}! 👋`);
-          navigate('/dashboard', { replace: true });
+        const result = await getGoogleRedirectResultOnce();
+        if (cancelled) return;
+
+        let firebaseUser = result?.user || null;
+
+        if (!firebaseUser && pendingGoogle) {
+          firebaseUser = await waitForFirebaseUser();
         }
+
+        if (!firebaseUser) {
+          if (pendingGoogle) {
+            sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+          }
+          return;
+        }
+
+        setGoogleRedirectPending(true);
+        await loginWithGoogleFirebase(firebaseUser);
+        sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+
+        toast.success(`Xin chào, ${firebaseUser.displayName || firebaseUser.email}! 👋`);
+        navigate('/dashboard', { replace: true });
       } catch (err) {
         console.error('Google redirect sign-in:', err);
+        sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
         if (err.response?.status === 404) {
           toast.error(
-            'Backend API 404. Đặt RENDER_API_ORIGIN trên Vercel = URL Render đúng, rồi redeploy.',
-            { duration: 8000 }
+            'Đăng nhập Google OK nhưng backend trả 404. Cấu hình RENDER_API_ORIGIN (URL Render) trên Vercel.',
+            { duration: 9000 }
           );
         } else {
-          toast.error(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
+          toast.error(
+            err.response?.data?.message ||
+              err.message ||
+              'Không đồng bộ được tài khoản với server. Thử lại hoặc kiểm tra Render.'
+          );
         }
       } finally {
-        if (active) {
+        if (!cancelled) {
           setGoogleRedirectPending(false);
           setBootstrapping(false);
         }
@@ -68,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     })();
 
     return () => {
-      active = false;
+      cancelled = true;
     };
   }, [loginWithGoogleFirebase, navigate]);
 
@@ -94,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     } catch {}
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
+    sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
     setUser(null);
   };
 
@@ -107,7 +136,7 @@ export const AuthProvider = ({ children }) => {
       <div className="page-loader">
         <div className="spinner" />
         <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
-          {googleRedirectPending ? 'Đang hoàn tất đăng nhập Google...' : 'Đang tải...'}
+          {googleRedirectPending ? 'Đang đồng bộ tài khoản Google với server...' : 'Đang tải...'}
         </p>
       </div>
     );
