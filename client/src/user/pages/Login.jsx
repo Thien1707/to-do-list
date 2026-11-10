@@ -4,6 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { auth, googleProvider } from '../config/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import toast from 'react-hot-toast';
+import {
+  TaskFlowLogo,
+  EyeIcon,
+  EyeOffIcon,
+  MailIcon,
+  LockIcon,
+  AlertCircleIcon,
+  SparklesIcon,
+} from '../../components/Icons';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -62,6 +71,10 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
+    if (!auth || !googleProvider) {
+      toast.error('Chưa thể kết nối Google Firebase. Vui lòng đăng nhập bằng Email và Mật khẩu.');
+      return;
+    }
     setGoogleLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -91,66 +104,84 @@ export default function Login() {
 
   return (
     <div className="auth-page">
+      {/* Decorative ambient background glows */}
+      <div className="auth-ambient-glow auth-ambient-glow-1" aria-hidden="true" />
+      <div className="auth-ambient-glow auth-ambient-glow-2" aria-hidden="true" />
+
       <div className="auth-box animate-fadein">
         <div className="auth-logo">
-          <div className="auth-logo-icon">✅</div>
-          <span style={{ fontWeight: 700, fontSize: '1.25rem' }}>TaskFlow</span>
+          <TaskFlowLogo size={46} />
+          <span className="auth-brand-name">TaskFlow</span>
+        </div>
+
+        <div className="auth-badge-pill">
+          <SparklesIcon size={14} />
+          <span>Không gian làm việc thông minh</span>
         </div>
 
         <div className="auth-title">
           <h1>Đăng nhập tài khoản</h1>
-          <p>Chào mừng bạn quay trở lại</p>
+          <p>Chào mừng bạn quay trở lại cùng TaskFlow</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="login-email">Email *</label>
-            <input
-              id="login-email"
-              type="email"
-              className={`form-input ${errors.email ? 'input-error' : ''}`}
-              placeholder="you@example.com"
-              autoComplete="email"
-              value={form.email}
-              onChange={e => handleChange('email', e.target.value)}
-              autoFocus
-            />
-            {errors.email && <div className="field-error-text">⚠️ {errors.email}</div>}
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <MailIcon size={18} />
+              </span>
+              <input
+                id="login-email"
+                type="email"
+                className={`form-input auth-input-with-icon ${errors.email ? 'input-error' : ''}`}
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={form.email}
+                onChange={e => handleChange('email', e.target.value)}
+                autoFocus
+              />
+            </div>
+            {errors.email && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.email}</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="login-password">Mật khẩu *</label>
-            <div style={{ position: 'relative' }}>
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <LockIcon size={18} />
+              </span>
               <input
                 id="login-password"
                 type={showPassword ? 'text' : 'password'}
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
+                className={`form-input auth-input-with-icon ${errors.password ? 'input-error' : ''}`}
                 placeholder="Nhập mật khẩu..."
                 autoComplete="current-password"
                 value={form.password}
                 onChange={e => handleChange('password', e.target.value)}
-                style={{ paddingRight: '2.5rem' }}
+                style={{ paddingRight: '2.75rem' }}
               />
               <button
                 type="button"
+                className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '0.6rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.9rem',
-                }}
                 title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
-            {errors.password && <div className="field-error-text">⚠️ {errors.password}</div>}
+            {errors.password && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.password}</span>
+              </div>
+            )}
           </div>
 
           <button

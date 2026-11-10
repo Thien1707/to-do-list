@@ -28,6 +28,7 @@ export function createApiClient() {
   const instance = axios.create({
     baseURL: origin || undefined,
     withCredentials: true,
+    timeout: 15000, // Tránh treo request quá lâu khi backend cold start / mất kết nối
   });
 
   instance.interceptors.request.use((config) => {

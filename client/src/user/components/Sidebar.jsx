@@ -1,16 +1,34 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import AccountSettingsModal from './AccountSettingsModal';
 import ConfirmModal from './ConfirmModal';
+import {
+  TaskFlowLogo,
+  HomeIcon,
+  ClipboardListIcon,
+  ZapIcon,
+  CheckCircleIcon,
+  FolderKanbanIcon,
+  BarChartIcon,
+  SunIcon,
+  MoonIcon,
+  SettingsIcon,
+  LogOutIcon,
+  PlusIcon,
+  CameraIcon,
+  XIcon,
+  TrashIcon,
+} from '../../components/Icons';
 
 const NAV_ITEMS = [
-  { icon: '🏠', label: 'Tất cả nhiệm vụ', filter: '', route: null },
-  { icon: '📋', label: 'Cần làm', filter: 'todo', route: null },
-  { icon: '⚡', label: 'Đang làm', filter: 'in_progress', route: null },
-  { icon: '✅', label: 'Hoàn thành', filter: 'done', route: null },
+  { icon: HomeIcon, label: 'Tất cả nhiệm vụ', filter: '', route: null },
+  { icon: ClipboardListIcon, label: 'Cần làm', filter: 'todo', route: null },
+  { icon: ZapIcon, label: 'Đang làm', filter: 'in_progress', route: null },
+  { icon: CheckCircleIcon, label: 'Hoàn thành', filter: 'done', route: null },
 ];
 
 const PRESET_ICONS = [
@@ -29,6 +47,7 @@ export default function Sidebar({
   onRefresh,
   onOpenStats,
   onSelectProjects,
+  onResetToHome,
   streak = 0,
   isOpen,
   onClose,
@@ -37,11 +56,6 @@ export default function Sidebar({
   const location = useLocation();
   const { user: authUser, logout, updateUser } = useAuth();
   const displayUser = user || authUser;
-  const effectiveStreak = displayUser?.id
-    ? (localStorage.getItem(`user_streak_${displayUser.id}`) !== null
-        ? parseInt(localStorage.getItem(`user_streak_${displayUser.id}`), 10)
-        : (streak || 0))
-    : (streak || 0);
 
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCatModal, setShowCatModal] = useState(false);
@@ -162,6 +176,18 @@ export default function Sidebar({
     return <span>{icon}</span>;
   };
 
+  const handleLogoClick = () => {
+    if (onResetToHome) {
+      onResetToHome();
+    } else {
+      navigate('/dashboard');
+      onCategoryChange('');
+      onFilterChange('');
+      if (onSelectProjects) onSelectProjects();
+    }
+    if (onClose) onClose();
+  };
+
   const initials = displayUser?.name
     ? displayUser.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
     : (displayUser?.email?.[0] || '?').toUpperCase();
@@ -173,16 +199,22 @@ export default function Sidebar({
 
       <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">✅</div>
-          <span className="sidebar-logo-text">TaskFlow</span>
+          <div
+            className="sidebar-logo-brand"
+            onClick={handleLogoClick}
+            title="Quay lại trang đầu (Tất cả nhiệm vụ)"
+          >
+            <TaskFlowLogo size={36} />
+            <span className="sidebar-logo-text">TaskFlow</span>
+          </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <button
               className="btn-icon"
               onClick={toggleTheme}
               title={theme === 'light' ? 'Chuyển sang nền tối' : 'Chuyển sang nền sáng'}
-              style={{ fontSize: '0.9rem' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <MoonIcon size={18} /> : <SunIcon size={18} />}
             </button>
             <button
               className="btn-icon mobile-menu-btn"
@@ -195,62 +227,25 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Daily Streak Highlight */}
-        <div style={{ padding: '0.75rem 0.75rem 0.25rem' }}>
-          <div
-            onClick={onOpenStats}
-            style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.55rem 0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              transition: 'var(--transition)',
-            }}
-            title="Xem báo cáo năng suất & thành tựu"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <span style={{ fontSize: '1.15rem' }}>🔥</span>
-              <div>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f97316' }}>
-                  Chuỗi {effectiveStreak} ngày
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  Duy trì thói quen tốt
-                </div>
-              </div>
-            </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
-              Xem 📊
-            </span>
-          </div>
-        </div>
-
         <nav className="sidebar-nav">
           <div className="sidebar-section-label">
-            <span>Trạng thái</span>
+            <span>Không gian làm việc</span>
           </div>
 
-          {NAV_ITEMS.map(item => {
-            const isActive = !location.pathname.startsWith('/projects') && activeFilter === item.filter && !activeCategory;
-            return (
-              <button
-                key={item.label}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  onCategoryChange('');
-                  onFilterChange(item.filter);
-                  if (onClose) onClose();
-                }}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+          {/* Bảng nhiệm vụ chính (Kanban Board) */}
+          <button
+            className={`nav-item ${!location.pathname.startsWith('/projects') && !activeFilter && !activeCategory ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/dashboard');
+              onCategoryChange('');
+              onFilterChange('');
+              if (onSelectProjects) onSelectProjects();
+              if (onClose) onClose();
+            }}
+          >
+            <span className="nav-icon"><HomeIcon size={18} /></span>
+            <span>Bảng nhiệm vụ</span>
+          </button>
 
           {/* Projects Button */}
           <button
@@ -261,8 +256,8 @@ export default function Sidebar({
               if (onClose) onClose();
             }}
           >
-            <span className="nav-icon">🗂️</span>
-            <span>Projects</span>
+            <span className="nav-icon"><FolderKanbanIcon size={18} /></span>
+            <span>Projects (Dự án)</span>
           </button>
 
           {/* Quick Statistics Button */}
@@ -273,9 +268,39 @@ export default function Sidebar({
               if (onClose) onClose();
             }}
           >
-            <span className="nav-icon">📊</span>
+            <span className="nav-icon"><BarChartIcon size={18} /></span>
             <span>Biểu đồ & Thành tựu</span>
           </button>
+
+          <div className="sidebar-section-label" style={{ marginTop: '0.75rem' }}>
+            <span>Lọc trạng thái</span>
+          </div>
+
+          {[
+            { icon: ClipboardListIcon, label: 'Cần làm', filter: 'todo' },
+            { icon: ZapIcon, label: 'Đang làm', filter: 'in_progress' },
+            { icon: CheckCircleIcon, label: 'Hoàn thành', filter: 'done' },
+          ].map(item => {
+            const Icon = item.icon;
+            const isActive = !location.pathname.startsWith('/projects') && activeFilter === item.filter && !activeCategory;
+            return (
+              <button
+                key={item.label}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  if (location.pathname.startsWith('/projects')) {
+                    navigate('/dashboard');
+                  }
+                  onCategoryChange('');
+                  onFilterChange(item.filter);
+                  if (onClose) onClose();
+                }}
+              >
+                <span className="nav-icon"><Icon size={18} /></span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
 
           <div className="sidebar-section-label" style={{ marginTop: '0.75rem' }}>
             <span>Danh mục</span>
@@ -285,14 +310,15 @@ export default function Sidebar({
                 border: 'none',
                 color: 'var(--primary)',
                 cursor: 'pointer',
-                fontSize: '1rem',
                 padding: '0 0.25rem',
-                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
               onClick={() => setShowCatModal(true)}
               title="Thêm danh mục mới"
             >
-              ＋
+              <PlusIcon size={15} />
             </button>
           </div>
 
@@ -308,6 +334,9 @@ export default function Sidebar({
                   key={cat.id}
                   className={`nav-item ${isCatActive ? 'active' : ''}`}
                   onClick={() => {
+                    if (location.pathname.startsWith('/projects')) {
+                      navigate('/dashboard');
+                    }
                     onCategoryChange(isCatActive ? '' : cat.id);
                     if (onClose) onClose();
                   }}
@@ -380,7 +409,7 @@ export default function Sidebar({
               }}
               title="Cài đặt"
             >
-              ⚙️
+              <SettingsIcon size={16} />
             </span>
           </div>
 
@@ -402,7 +431,7 @@ export default function Sidebar({
               onClick={() => setShowAccountModal(true)}
               title="Mở hồ sơ và cài đặt tài khoản"
             >
-              <span>⚙️</span>
+              <SettingsIcon size={14} />
               <span>Cài đặt</span>
             </button>
             <button
@@ -423,35 +452,41 @@ export default function Sidebar({
               onClick={() => setShowLogoutConfirm(true)}
               title="Đăng xuất khỏi hệ thống"
             >
-              <span>🚪</span>
+              <LogOutIcon size={14} />
               <span>Đăng xuất</span>
             </button>
           </div>
         </div>
+      </aside>
 
-        {/* Account & Profile Settings Modal */}
-        {showAccountModal && (
-          <AccountSettingsModal
-            user={displayUser}
-            onUpdateUser={(updatedUser) => {
-              if (updateUser) updateUser(updatedUser);
-              if (onRefresh) onRefresh();
-            }}
-            onClose={() => setShowAccountModal(false)}
-          />
-        )}
+      {/* Account & Profile Settings Modal */}
+      {showAccountModal && (
+        <AccountSettingsModal
+          user={displayUser}
+          onUpdateUser={(updatedUser) => {
+            if (updateUser) updateUser(updatedUser);
+            if (onRefresh) onRefresh();
+          }}
+          onClose={() => setShowAccountModal(false)}
+        />
+      )}
 
-        {/* Modal: Add Category with rich icon picker & file upload */}
-        {showCatModal && (
-          <div
-            className="modal-overlay"
-            onClick={e => e.target === e.currentTarget && setShowCatModal(false)}
-            style={{ zIndex: 300 }}
-          >
+      {/* Modal: Add Category with rich icon picker & file upload */}
+      {showCatModal && createPortal(
+        <div
+          className="modal-overlay"
+          onClick={e => e.target === e.currentTarget && setShowCatModal(false)}
+          style={{ zIndex: 9999 }}
+        >
             <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 460px)' }}>
               <div className="modal-header">
-                <h3>➕ Thêm danh mục mới</h3>
-                <button className="btn-icon" onClick={() => setShowCatModal(false)}>✕</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <PlusIcon size={18} style={{ color: 'var(--primary)' }} />
+                  <h3 style={{ margin: 0 }}>Thêm danh mục mới</h3>
+                </div>
+                <button className="btn-icon" onClick={() => setShowCatModal(false)} title="Đóng">
+                  <XIcon size={16} />
+                </button>
               </div>
               <form onSubmit={handleAddCategory}>
                 <div className="modal-body">
@@ -512,10 +547,11 @@ export default function Sidebar({
                           fontWeight: 600,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.25rem',
+                          gap: '0.3rem',
                         }}
                       >
-                        📁 Tải ảnh từ máy
+                        <CameraIcon size={14} />
+                        <span>Tải ảnh từ máy</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -596,7 +632,8 @@ export default function Sidebar({
                 </div>
               </form>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
         {catToDelete && (
           <ConfirmModal
@@ -606,7 +643,7 @@ export default function Sidebar({
             confirmText="Xóa danh mục"
             cancelText="Hủy bỏ"
             variant="danger"
-            icon="📁"
+            icon={<TrashIcon size={20} />}
             onConfirm={confirmDeleteCategory}
             onClose={() => setCatToDelete(null)}
           />
@@ -616,15 +653,14 @@ export default function Sidebar({
             isOpen={showLogoutConfirm}
             title="Đăng xuất"
             message="Bạn có chắc chắn muốn đăng xuất khỏi tài khoản TaskFlow?"
-            confirmText="🚪 Đăng xuất"
+            confirmText="Đăng xuất"
             cancelText="Ở lại"
             variant="warning"
-            icon="🚪"
+            icon={<LogOutIcon size={20} />}
             onConfirm={handleLogout}
             onClose={() => setShowLogoutConfirm(false)}
           />
         )}
-      </aside>
     </>
   );
 }

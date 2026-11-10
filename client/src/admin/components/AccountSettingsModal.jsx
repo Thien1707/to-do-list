@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import { EyeIcon, EyeOffIcon, ShieldCheckIcon } from '../../components/Icons';
 
 const PRESET_AVATARS = [
   { id: 'admin-1', label: 'Shield Boss', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminBoss' },
@@ -731,32 +732,32 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Email Quản trị viên</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="email"
-                          className="form-input"
-                          value={admin?.email || ''}
-                          disabled
-                          style={{ opacity: 0.7, cursor: 'not-allowed', paddingRight: '5.5rem' }}
-                        />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <label className="form-label" style={{ margin: 0 }}>Email Quản trị viên</label>
                         <span
                           style={{
-                            position: 'absolute',
-                            right: 8,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
                             fontSize: '0.68rem',
                             fontWeight: 600,
                             color: 'var(--primary)',
                             background: 'var(--primary-light)',
                             padding: '0.15rem 0.45rem',
                             borderRadius: 4,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
                           }}
                         >
-                          🛡️ Toàn quyền
+                          <ShieldCheckIcon size={12} />
+                          <span>Toàn quyền</span>
                         </span>
                       </div>
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={admin?.email || ''}
+                        disabled
+                        style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                      />
                     </div>
                   </div>
 
@@ -864,10 +865,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           type="button"
                           className="btn-icon"
                           onClick={() => setShowCurrentPw(!showCurrentPw)}
-                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                           title={showCurrentPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                         >
-                          {showCurrentPw ? '👁️' : '🙈'}
+                          {showCurrentPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                         </button>
                       </div>
                     </div>
@@ -889,10 +890,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowNewPw(!showNewPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showNewPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showNewPw ? '👁️' : '🙈'}
+                        {showNewPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -952,10 +953,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowConfirmPw(!showConfirmPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showConfirmPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showConfirmPw ? '👁️' : '🙈'}
+                        {showConfirmPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 

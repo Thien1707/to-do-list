@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import { EyeIcon, EyeOffIcon } from '../../components/Icons';
 
 const PRESET_AVATARS = [
   { id: 'bot-1', label: 'Robot Alpha', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix' },
@@ -43,7 +45,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [sessions, setSessions] = useState([]);
 
   // Preferences State
   const [theme, setTheme] = useState(user?.theme_preference || localStorage.getItem('theme') || 'light');
@@ -56,7 +57,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     }
   );
 
-  // Fetch latest user data, stats, and sessions
+  // Fetch latest user data and stats
   useEffect(() => {
     let isMounted = true;
     const fetchUserData = async () => {
@@ -83,17 +84,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
       }
     };
 
-    const fetchSessions = async () => {
-      try {
-        const { data } = await api.get('/auth/sessions');
-        if (isMounted && data.success) {
-          setSessions(data.data.sessions || []);
-        }
-      } catch (_) {}
-    };
-
     fetchUserData();
-    fetchSessions();
 
     return () => {
       isMounted = false;
@@ -357,7 +348,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const userInitials = (name || user?.name || user?.email || 'U').charAt(0).toUpperCase();
   const currentAvatarDisplay = previewUrl || avatarUrl;
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 999 }}>
       <div
         className="modal animate-fadein"
@@ -734,32 +725,31 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Email (Tài khoản)</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="email"
-                          className="form-input"
-                          value={user?.email || ''}
-                          disabled
-                          style={{ opacity: 0.7, cursor: 'not-allowed', paddingRight: '5rem' }}
-                        />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <label className="form-label" style={{ margin: 0 }}>Email (Tài khoản)</label>
                         <span
                           style={{
-                            position: 'absolute',
-                            right: 8,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
                             fontSize: '0.68rem',
                             fontWeight: 600,
                             color: '#10b981',
                             background: 'rgba(16, 185, 129, 0.1)',
                             padding: '0.15rem 0.45rem',
                             borderRadius: 4,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem',
                           }}
                         >
                           ✓ Đã xác thực
                         </span>
                       </div>
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={user?.email || ''}
+                        disabled
+                        style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                      />
                     </div>
                   </div>
 
@@ -845,7 +835,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                   Bảo mật & Đổi mật khẩu
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                  Bảo vệ tài khoản với mật khẩu mạnh và xem xét các phiên đăng nhập hiện thời.
+                  Bảo vệ tài khoản với mật khẩu mạnh và quản lý phương thức xác thực.
                 </p>
 
                 {/* Google OAuth Linked Card */}
@@ -905,10 +895,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           type="button"
                           className="btn-icon"
                           onClick={() => setShowCurrentPw(!showCurrentPw)}
-                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                           title={showCurrentPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                         >
-                          {showCurrentPw ? '👁️' : '🙈'}
+                          {showCurrentPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                         </button>
                       </div>
                     </div>
@@ -932,10 +922,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowNewPw(!showNewPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showNewPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showNewPw ? '👁️' : '🙈'}
+                        {showNewPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -995,10 +985,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowConfirmPw(!showConfirmPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showConfirmPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showConfirmPw ? '👁️' : '🙈'}
+                        {showConfirmPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -1029,48 +1019,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                     </button>
                   </div>
                 </form>
-
-                {/* Sessions Section */}
-                <div>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                    Phiên đăng nhập hiện thời
-                  </h4>
-                  <div
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      padding: '0.85rem 1rem',
-                      background: 'var(--bg-elevated)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1.4rem' }}>💻</span>
-                      <div>
-                        <div style={{ fontSize: '0.84rem', fontWeight: 600 }}>
-                          {sessions[0]?.browser || 'Google Chrome'} trên {sessions[0]?.os || 'Windows PC'}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Địa chỉ IP: {sessions[0]?.ip || '127.0.0.1'} • Đang hoạt động
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        color: '#10b981',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: 6,
-                      }}
-                    >
-                      🟢 Thiết bị này
-                    </span>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1351,6 +1299,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
           onClose={() => setShowDeleteAvatarConfirm(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

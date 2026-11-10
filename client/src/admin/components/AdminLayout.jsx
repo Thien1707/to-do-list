@@ -4,6 +4,7 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import toast from 'react-hot-toast';
 import AccountSettingsModal from './AccountSettingsModal';
 import ConfirmModal from './ConfirmModal';
+import { ShieldIcon } from '../../components/Icons';
 
 const NAV = [
   { key: 'dashboard', icon: '📊', label: 'Tổng quan hệ thống', path: '/admin/dashboard' },
@@ -37,10 +38,16 @@ export default function AdminLayout({ children, active }) {
 
       <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">🛡️</div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>TaskFlow</span>
-            <span className="sidebar-badge">Admin</span>
+          <div
+            onClick={() => navigate('/admin/dashboard')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', flex: 1, userSelect: 'none' }}
+            title="Quay lại bảng điều khiển Admin"
+          >
+            <ShieldIcon size={34} />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>TaskFlow</span>
+              <span className="sidebar-badge">Admin</span>
+            </div>
           </div>
           <button
             className="btn-icon mobile-menu-btn"

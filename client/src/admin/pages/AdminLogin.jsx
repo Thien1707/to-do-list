@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import toast from 'react-hot-toast';
+import {
+  ShieldIcon,
+  EyeIcon,
+  EyeOffIcon,
+  MailIcon,
+  LockIcon,
+  AlertCircleIcon,
+} from '../../components/Icons';
 
 export default function AdminLogin() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -60,11 +68,14 @@ export default function AdminLogin() {
 
   return (
     <div className="auth-page">
+      <div className="auth-ambient-glow auth-ambient-glow-1" aria-hidden="true" />
+      <div className="auth-ambient-glow auth-ambient-glow-2" aria-hidden="true" />
+
       <div className="auth-box animate-fadein">
         <div className="auth-logo">
-          <div className="auth-logo-icon">🛡️</div>
-          <span style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
-            TaskFlow <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>ADMIN</span>
+          <ShieldIcon size={46} />
+          <span className="auth-brand-name">
+            TaskFlow <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, padding: '2px 6px', background: 'rgba(99, 102, 241, 0.12)', borderRadius: 4, verticalAlign: 'middle' }}>ADMIN</span>
           </span>
         </div>
 
@@ -76,52 +87,61 @@ export default function AdminLogin() {
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="admin-email">Email Quản trị *</label>
-            <input
-              id="admin-email"
-              type="email"
-              className={`form-input ${errors.email ? 'input-error' : ''}`}
-              placeholder="admin@taskmanager.com"
-              autoComplete="email"
-              value={form.email}
-              onChange={e => handleChange('email', e.target.value)}
-              autoFocus
-            />
-            {errors.email && <div className="field-error-text">⚠️ {errors.email}</div>}
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <MailIcon size={18} />
+              </span>
+              <input
+                id="admin-email"
+                type="email"
+                className={`form-input auth-input-with-icon ${errors.email ? 'input-error' : ''}`}
+                placeholder="admin@taskmanager.com"
+                autoComplete="email"
+                value={form.email}
+                onChange={e => handleChange('email', e.target.value)}
+                autoFocus
+              />
+            </div>
+            {errors.email && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.email}</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="admin-password">Mật khẩu *</label>
-            <div style={{ position: 'relative' }}>
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <LockIcon size={18} />
+              </span>
               <input
                 id="admin-password"
                 type={showPassword ? 'text' : 'password'}
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
+                className={`form-input auth-input-with-icon ${errors.password ? 'input-error' : ''}`}
                 placeholder="Nhập mật khẩu..."
                 autoComplete="current-password"
                 value={form.password}
                 onChange={e => handleChange('password', e.target.value)}
-                style={{ paddingRight: '2.5rem' }}
+                style={{ paddingRight: '2.75rem' }}
               />
               <button
                 type="button"
+                className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '0.6rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.9rem',
-                }}
                 title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
-            {errors.password && <div className="field-error-text">⚠️ {errors.password}</div>}
+            {errors.password && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.password}</span>
+              </div>
+            )}
           </div>
 
           {/* Account hint */}

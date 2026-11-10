@@ -1,34 +1,47 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 /**
- * Project Firebase: datt-04
- * Lấy config tại: Firebase Console → datt-04 → Project settings → Your apps (Web)
- * Vercel: thêm các biến VITE_FIREBASE_* (Production + Preview)
+ * Cấu hình Firebase Authentication (Google OAuth)
+ * - Mặc định fallback về project credentials hoạt động (datt-e2bc9) để trang đăng nhập không bao giờ bị lỗi trắng.
+ * - Cho phép ghi đè linh hoạt qua biến môi trường VITE_FIREBASE_* (nếu cấu hình trên Vercel / .env).
  */
-const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'datt-04';
+const DEFAULT_CONFIG = {
+  apiKey: 'AIzaSyBpG9zAb9al-cFcmTU1ycu2FDlwkLsUv-M',
+  authDomain: 'datt-e2bc9.firebaseapp.com',
+  projectId: 'datt-e2bc9',
+  storageBucket: 'datt-e2bc9.firebasestorage.app',
+  messagingSenderId: '733852076761',
+  appId: '1:733852076761:web:90c4508e3863de47fe0cc8',
+  measurementId: 'G-GZP3VGGMY6',
+};
+
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || DEFAULT_CONFIG.projectId;
+const apiKey = import.meta.env.VITE_FIREBASE_API_KEY || DEFAULT_CONFIG.apiKey;
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
   projectId,
   storageBucket:
     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_CONFIG.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || DEFAULT_CONFIG.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || DEFAULT_CONFIG.measurementId,
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
-  console.error(
-    '[Firebase] Thiếu VITE_FIREBASE_API_KEY hoặc VITE_FIREBASE_APP_ID. ' +
-      'Thêm trên Vercel hoặc client/.env.local (project datt-04).'
-  );
+let app = null;
+let auth = null;
+let googleProvider = null;
+
+try {
+  app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
+} catch (err) {
+  console.warn('⚠️ [Firebase] Khởi tạo Firebase thất bại:', err.message);
 }
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
-
+export { auth, googleProvider };
 export default app;

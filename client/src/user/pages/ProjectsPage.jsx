@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import toast from 'react-hot-toast';
+import {
+  FolderKanbanIcon,
+  PlusIcon,
+  SearchIcon,
+  HomeIcon,
+  CheckIcon,
+  XIcon,
+  ClipboardListIcon,
+  SparklesIcon,
+} from '../../components/Icons';
 
 const PROJECT_ICONS = ['📋', '🚀', '💼', '🎯', '💡', '⚡', '🛠️', '🎨', '📊', '🏆', '🔬', '🌟'];
 const PROJECT_COLORS = [
@@ -91,12 +103,17 @@ function CreateProjectModal({ onClose, onCreated }) {
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  return createPortal(
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 1000 }}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 520px)' }}>
         <div className="modal-header">
-          <h3>🚀 Tạo Project mới</h3>
-          <button className="btn-icon" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FolderKanbanIcon size={20} />
+            <h3 style={{ margin: 0 }}>Tạo Project mới</h3>
+          </div>
+          <button className="btn-icon" onClick={onClose} title="Đóng">
+            <XIcon size={18} />
+          </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -145,7 +162,7 @@ function CreateProjectModal({ onClose, onCreated }) {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Icon</label>
+                <label className="form-label">Icon đại diện</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                   {PROJECT_ICONS.map(ic => (
                     <button
@@ -182,17 +199,20 @@ function CreateProjectModal({ onClose, onCreated }) {
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Hủy</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? '⏳ Đang tạo...' : '🚀 Tạo Project'}
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <PlusIcon size={16} />
+              <span>{saving ? 'Đang tạo...' : 'Tạo Project'}</span>
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 export default function ProjectsPage({ onSelectProject }) {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -220,19 +240,38 @@ export default function ProjectsPage({ onSelectProject }) {
       {/* Header */}
       <div className="projects-header">
         <div>
-          <h1 className="projects-title">📋 Projects</h1>
-          <p className="projects-subtitle">Quản lý tất cả projects của bạn</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: 4 }}>
+            <h1 className="projects-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <FolderKanbanIcon size={24} style={{ color: 'var(--primary)' }} />
+              <span>Projects (Dự án)</span>
+            </h1>
+          </div>
+          <p className="projects-subtitle">Quản lý không gian làm việc và dự án nhóm của bạn</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate('/dashboard')}
+            title="Quay về bảng Kanban nhiệm vụ cá nhân"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <HomeIcon size={16} />
+            <span>Về Bảng nhiệm vụ</span>
+          </button>
           <input
             className="form-input"
-            placeholder="🔍 Tìm project..."
+            placeholder="Tìm project..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: 220 }}
+            style={{ width: 200 }}
           />
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            ➕ Tạo Project
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreate(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <PlusIcon size={16} />
+            <span>Tạo Project</span>
           </button>
         </div>
       </div>
@@ -264,13 +303,38 @@ export default function ProjectsPage({ onSelectProject }) {
         </div>
       ) : filtered.length === 0 ? (
         <div className="projects-empty">
-          <div className="empty-icon">📋</div>
+          <div className="empty-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', width: 64, height: 64, borderRadius: 16, background: 'var(--primary-light)', color: 'var(--primary)' }}>
+            <FolderKanbanIcon size={32} />
+          </div>
           <h3>{search ? 'Không tìm thấy project nào' : 'Chưa có project nào'}</h3>
-          <p>{search ? 'Thử tìm kiếm với từ khóa khác' : 'Hãy tạo project đầu tiên để bắt đầu làm việc nhóm!'}</p>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.25rem', maxWidth: 540, margin: '0.75rem auto 1.5rem', textAlign: 'left' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--primary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <HomeIcon size={16} />
+              <span>Bảng nhiệm vụ của bạn vẫn đang hoạt động bình thường!</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              Tất cả các công việc cá nhân của bạn không bị mất — chúng nằm tại <strong>"Bảng nhiệm vụ"</strong>. Khu vực <strong>"Projects"</strong> này là nơi tạo và quản lý các dự án nhóm lớn khi bạn cần cộng tác cùng đồng đội.
+            </p>
+          </div>
           {!search && (
-            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-              🚀 Tạo Project đầu tiên
-            </button>
+            <div style={{ display: 'flex', gap: '0.85rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowCreate(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.2rem' }}
+              >
+                <PlusIcon size={16} />
+                <span>Tạo Project đầu tiên</span>
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => navigate('/dashboard')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.2rem', borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 600 }}
+              >
+                <HomeIcon size={16} />
+                <span>Quay lại Bảng nhiệm vụ cá nhân</span>
+              </button>
+            </div>
           )}
         </div>
       ) : (
