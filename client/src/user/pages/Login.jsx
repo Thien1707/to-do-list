@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { auth, googleProvider } from '../config/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { startGoogleSignIn } from '../utils/googleAuth';
 import toast from 'react-hot-toast';
 import {
   TaskFlowLogo,
@@ -58,8 +57,12 @@ export default function Login() {
       toast.success('Đăng nhập thành công!');
       navigate('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại';
-      toast.error(msg);
+      let msg = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại';
+      if (err.response?.status === 404) {
+        msg =
+          'API backend trả 404. Trên Vercel đặt RENDER_API_ORIGIN = URL Render (vd https://xxx.onrender.com) rồi redeploy.';
+      }
+      toast.error(msg, { duration: err.response?.status === 404 ? 8000 : 4000 });
       if (msg.toLowerCase().includes('email') || msg.toLowerCase().includes('tài khoản')) {
         setErrors(prev => ({ ...prev, email: msg }));
       } else if (msg.toLowerCase().includes('mật khẩu')) {
@@ -77,14 +80,22 @@ export default function Login() {
     }
     setGoogleLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await startGoogleSignIn();
+      if (!result) return;
       await loginWithGoogleFirebase(result.user);
       toast.success(`Xin chào, ${result.user.displayName || result.user.email}! 👋`);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       console.error('Google Sign-in error:', err);
+      if (err.response?.status === 404) {
+        toast.error(
+          'Backend API 404 — cấu hình RENDER_API_ORIGIN trên Vercel trùng URL service Render.',
+          { duration: 8000 }
+        );
+        return;
+      }
       if (err.code === 'auth/popup-closed-by-user') {
-        toast('Đã đóng cửa sổ đăng nhập Google');
+        toast('Đã đóng cửa sổ đăng nhập Google (hoặc thử lại — production dùng chuyển hướng Google)');
       } else if (err.code === 'auth/cancelled-popup-request') {
         // popup request cancelled
       } else if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/configuration-not-found') {
@@ -184,6 +195,12 @@ export default function Login() {
             )}
           </div>
 
+          <div style={{ textAlign: 'right', marginTop: '-0.25rem', marginBottom: '0.35rem' }}>
+            <Link to="/forgot-password" style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>
+              Quên mật khẩu?
+            </Link>
+          </div>
+
           <button
             id="login-submit"
             type="submit"
@@ -209,7 +226,7 @@ export default function Login() {
               <path fill="#FBBC05" d="M10.6 28.4c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4L2.7 13.5C1 16.8 0 20.3 0 24s1 7.2 2.7 10.5l7.9-6.1z"/>
               <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.7 2.2-7.7 2.2-6.2 0-11.5-3.8-13.4-9.1l-7.9 6.1C6.5 42.5 14.6 48 24 48z"/>
             </svg>
-            {googleLoading ? 'Đang mở Google...' : 'Đăng nhập với Google'}
+            {googleLoading ? 'Đang chuyển sang Google...' : 'Đăng nhập với Google'}
           </button>
         </form>
 

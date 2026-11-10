@@ -2,11 +2,19 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const multer = require('multer');
 const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const { User, Task, Project, ProjectMember } = require('../models');
 const { setCachedUser, invalidateAuthUser } = require('../config/authUserCache');
+const { sendPasswordResetEmail } = require('../services/emailService');
+
+const getClientBaseUrl = () =>
+  (process.env.CLIENT_URL || process.env.USER_FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+const FORGOT_PASSWORD_OK_MESSAGE =
+  'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.';
 
 // Configure Multer storage for avatars with strict security rules
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -401,6 +409,103 @@ exports.deleteAvatar = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi:", err.message);
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
+  }
+};
+
+// POST /api/auth/forgot-password
+exports.forgotPassword = async (req, res) => {
+  try {
+    const email = String(req.body.email || '')
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập email' });
+    }
+
+    const user = await User.findOne({ where: { email, role: 'user' } });
+    if (!user) {
+      return res.json({ success: true, message: FORGOT_PASSWORD_OK_MESSAGE });
+    }
+
+    if (!user.password_hash && user.google_id) {
+      return res.json({
+        success: true,
+        message:
+          'Tài khoản này đăng ký bằng Google. Vui lòng dùng nút "Đăng nhập với Google" thay vì đặt lại mật khẩu.',
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    await user.update({ password_reset_token: token, password_reset_expires: expires });
+
+    const resetUrl = `${getClientBaseUrl()}/reset-password?token=${token}`;
+    const mailResult = await sendPasswordResetEmail(user.email, user.name, resetUrl);
+
+    if (mailResult.notConfigured) {
+      if (!isProd) {
+        console.log(`[dev] Reset link: ${resetUrl}`);
+        return res.json({
+          success: true,
+          message: FORGOT_PASSWORD_OK_MESSAGE,
+          data: { devResetUrl: resetUrl },
+        });
+      }
+      return res.status(503).json({
+        success: false,
+        message: 'Hệ thống chưa cấu hình gửi email. Liên hệ quản trị viên.',
+      });
+    }
+
+    if (!mailResult.success) {
+      return res.status(500).json({ success: false, message: 'Không gửi được email. Thử lại sau.' });
+    }
+
+    return res.json({ success: true, message: FORGOT_PASSWORD_OK_MESSAGE });
+  } catch (err) {
+    console.error('❌ forgotPassword:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// POST /api/auth/reset-password
+exports.resetPassword = async (req, res) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    const newPassword = req.body.new_password || req.body.newPassword;
+    const confirmPassword = req.body.confirm_password || req.body.confirmPassword;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Token không hợp lệ' });
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự' });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        password_reset_token: token,
+        password_reset_expires: { [Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn' });
+    }
+
+    user.password_hash = newPassword;
+    user.password_reset_token = null;
+    user.password_reset_expires = null;
+    await user.save();
+    invalidateAuthUser(user.id);
+
+    return res.json({ success: true, message: 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập.' });
+  } catch (err) {
+    console.error('❌ resetPassword:', err.message);
+    return res.status(500).json({ success: false, message: 'Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau.' });
   }
 };
 
