@@ -787,10 +787,11 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                             borderRadius: 4,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.2rem',
+                            gap: '0.25rem',
                           }}
                         >
-                          ✓ Đã xác thực
+                          <CheckCircleIcon size={12} />
+                          <span>Đã xác thực</span>
                         </span>
                       </div>
                       <input

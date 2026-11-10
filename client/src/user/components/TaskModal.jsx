@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -77,8 +78,8 @@ export default function TaskModal({ task, categories = [], onClose, onSave, onVi
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  return createPortal(
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 580px)' }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -278,7 +279,8 @@ export default function TaskModal({ task, categories = [], onClose, onSave, onVi
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

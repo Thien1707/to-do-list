@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { projectService } from '../services/projectService';
-import { commentService } from '../services/projectService';
+import { projectService, commentService } from '../services/projectService';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 

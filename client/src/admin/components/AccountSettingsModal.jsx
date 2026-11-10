@@ -7,12 +7,10 @@ import {
   EyeIcon,
   EyeOffIcon,
   ShieldCheckIcon,
-  ShieldIcon,
   UserIcon,
   LockIcon,
   PaletteIcon,
   BarChartIcon,
-  SettingsIcon,
   CameraIcon,
   SparklesIcon,
   TrashIcon,
@@ -22,12 +20,10 @@ import {
   MoonIcon,
   LaptopIcon,
   MailIcon,
-  ClockIcon,
-  MessageSquareIcon,
   BellIcon,
   ClipboardListIcon,
   CheckCircleIcon,
-  ZapIcon,
+  FolderKanbanIcon,
   AlertCircleIcon,
 } from '../../components/Icons';
 
@@ -605,11 +601,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '0.75rem',
                         boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
                       }}
                     >
-                      🛡️
+                      <ShieldCheckIcon size={14} />
                     </span>
                   </div>
 
@@ -627,26 +622,31 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn btn-secondary btn-sm"
                         onClick={() => fileInputRef.current?.click()}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        📷 Tải ảnh từ máy
+                        <CameraIcon size={14} />
+                        <span>Tải ảnh từ máy</span>
                       </button>
 
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
                         onClick={() => setShowPresets(!showPresets)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        🎭 Chọn avatar mẫu
+                        <SparklesIcon size={14} />
+                        <span>Chọn avatar mẫu</span>
                       </button>
 
                       {(avatarUrl || previewUrl) && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--danger)' }}
+                          style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                           onClick={handleDeleteAvatar}
                         >
-                          🗑️ Xóa ảnh
+                          <TrashIcon size={14} />
+                          <span>Xóa ảnh</span>
                         </button>
                       )}
                     </div>
@@ -863,8 +863,14 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? 'Đang lưu...' : '💾 Lưu thông tin'}
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={loading}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                    >
+                      <SaveIcon size={16} />
+                      <span>{loading ? 'Đang lưu...' : 'Lưu thông tin'}</span>
                     </button>
                   </div>
                 </form>
@@ -1092,34 +1098,40 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                   <label className="form-label" style={{ marginBottom: '0.75rem' }}>Chủ đề giao diện Bảng quản trị</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     {[
-                      { id: 'light', icon: '☀️', label: 'Chế độ Sáng', desc: 'Sáng sủa, rõ ràng các chỉ số' },
-                      { id: 'dark', icon: '🌙', label: 'Chế độ Tối', desc: 'Dịu mắt, phong cách hiện đại' },
-                      { id: 'system', icon: '💻', label: 'Theo hệ thống', desc: 'Tự động theo giao diện máy' },
-                    ].map(t => (
-                      <div
-                        key={t.id}
-                        onClick={() => handleThemeChange(t.id)}
-                        style={{
-                          border: theme === t.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                          borderRadius: 12,
-                          padding: '1rem',
-                          background: theme === t.id ? 'var(--primary-light)' : 'var(--bg-elevated)',
-                          cursor: 'pointer',
-                          transition: 'all 0.18s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ fontSize: '1.6rem' }}>{t.icon}</span>
-                        <div style={{ fontWeight: 600, fontSize: '0.86rem', color: theme === t.id ? 'var(--primary)' : 'var(--text-primary)' }}>
-                          {t.label}
+                      { id: 'light', icon: SunIcon, label: 'Chế độ Sáng', desc: 'Sáng sủa, rõ ràng các chỉ số' },
+                      { id: 'dark', icon: MoonIcon, label: 'Chế độ Tối', desc: 'Dịu mắt, phong cách hiện đại' },
+                      { id: 'system', icon: LaptopIcon, label: 'Theo hệ thống', desc: 'Tự động theo giao diện máy' },
+                    ].map(t => {
+                      const ThemeIcon = t.icon;
+                      const isSelected = theme === t.id;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => handleThemeChange(t.id)}
+                          style={{
+                            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                            borderRadius: 12,
+                            padding: '1rem',
+                            background: isSelected ? 'var(--primary-light)' : 'var(--bg-elevated)',
+                            cursor: 'pointer',
+                            transition: 'all 0.18s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <div style={{ color: isSelected ? 'var(--primary)' : 'var(--text-muted)', marginBottom: 2 }}>
+                            <ThemeIcon size={24} />
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: '0.86rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                            {t.label}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {t.desc}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {t.desc}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1130,78 +1142,83 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     {[
                       {
                         key: 'email_reminders',
-                        icon: '📬',
+                        icon: MailIcon,
                         title: 'Thông báo báo cáo hệ thống định kỳ',
                         desc: 'Gửi báo cáo tổng hợp tiến độ toàn hệ thống vào đầu tuần',
                       },
                       {
                         key: 'due_date_alerts',
-                        icon: '⚠️',
+                        icon: AlertCircleIcon,
                         title: 'Cảnh báo nhiệm vụ trễ hạn người dùng',
                         desc: 'Hiển thị cảnh báo khi số lượng nhiệm vụ trễ hạn vượt mức bình thường',
                       },
                       {
                         key: 'system_updates',
-                        icon: '👥',
+                        icon: UserIcon,
                         title: 'Thông báo người dùng mới đăng ký',
                         desc: 'Nhận thông báo khi có tài khoản mới được tạo trong hệ thống',
                       },
                       {
                         key: 'sound_enabled',
-                        icon: '🔔',
+                        icon: BellIcon,
                         title: 'Âm thanh thông báo khi thao tác',
                         desc: 'Phát âm thanh thông báo nhẹ khi lưu hoặc xóa dữ liệu thành công',
                       },
-                    ].map(item => (
-                      <div
-                        key={item.key}
-                        onClick={() => handleToggleNotification(item.key)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.85rem 1rem',
-                          background: 'var(--bg-elevated)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
-                          </div>
-                        </div>
-
-                        {/* Switch */}
+                    ].map(item => {
+                      const ItemIcon = item.icon;
+                      return (
                         <div
+                          key={item.key}
+                          onClick={() => handleToggleNotification(item.key)}
                           style={{
-                            width: 38,
-                            height: 22,
-                            borderRadius: 99,
-                            background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
-                            position: 'relative',
-                            transition: 'background 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.85rem 1rem',
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            cursor: 'pointer',
                           }}
                         >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+                              <ItemIcon size={18} />
+                            </span>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
+                            </div>
+                          </div>
+
+                          {/* Switch */}
                           <div
                             style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              background: '#fff',
-                              position: 'absolute',
-                              top: 3,
-                              left: notifications[item.key] ? 19 : 3,
-                              transition: 'left 0.2s',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              width: 38,
+                              height: 22,
+                              borderRadius: 99,
+                              background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
+                              position: 'relative',
+                              transition: 'background 0.2s',
                             }}
-                          />
+                          >
+                            <div
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                background: '#fff',
+                                position: 'absolute',
+                                top: 3,
+                                left: notifications[item.key] ? 19 : 3,
+                                transition: 'left 0.2s',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1235,7 +1252,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>👥 Người dùng</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>
+                          <UserIcon size={14} />
+                          <span>Người dùng</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
                           {stats?.totalUsers || 0}
                         </div>
@@ -1249,7 +1269,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>📁 Tổng dự án</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                          <FolderKanbanIcon size={14} />
+                          <span>Tổng dự án</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#10b981' }}>
                           {stats?.totalProjects || 0}
                         </div>
@@ -1263,7 +1286,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>📋 Tổng nhiệm vụ</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>
+                          <ClipboardListIcon size={14} />
+                          <span>Tổng nhiệm vụ</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#3b82f6' }}>
                           {stats?.totalTasks || 0}
                         </div>
@@ -1277,7 +1303,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>✅ Đã hoàn thành</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                          <CheckCircleIcon size={14} />
+                          <span>Đã hoàn thành</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#10b981' }}>
                           {stats?.doneTasks || 0}
                         </div>

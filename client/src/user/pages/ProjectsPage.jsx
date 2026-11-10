@@ -6,12 +6,8 @@ import toast from 'react-hot-toast';
 import {
   FolderKanbanIcon,
   PlusIcon,
-  SearchIcon,
   HomeIcon,
-  CheckIcon,
   XIcon,
-  ClipboardListIcon,
-  SparklesIcon,
 } from '../../components/Icons';
 
 const PROJECT_ICONS = ['📋', '🚀', '💼', '🎯', '💡', '⚡', '🛠️', '🎨', '📊', '🏆', '🔬', '🌟'];

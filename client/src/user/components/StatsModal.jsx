@@ -336,9 +336,15 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                         {ach.title}
                       </div>
                       {ach.unlocked ? (
-                        <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>✓ MỞ KHÓA</span>
+                        <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <CheckIcon size={13} />
+                          <span>ĐÃ MỞ KHÓA</span>
+                        </span>
                       ) : (
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🔒 KHÓA</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <LockIcon size={12} />
+                          <span>CHƯA MỞ</span>
+                        </span>
                       )}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { CalendarIcon, XIcon } from '../../components/Icons';
 
 const PRIORITY_LABELS = {
   low: { label: 'Thấp', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
@@ -71,21 +73,23 @@ export default function TaskDateHistoryModal({
   const currentTasks = data.current_tasks || [];
   const rescheduledTasks = data.rescheduled_from_here || [];
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  return createPortal(
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 840px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div className="modal-header" style={{ paddingBottom: '0.85rem' }}>
           <div>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>📅</span>
+              <CalendarIcon size={18} style={{ color: 'var(--primary)' }} />
               <span>Lịch sử Task theo ngày</span>
             </h3>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Theo dõi công việc đã lên lịch cho ngày và truy vết các công việc đã được chuyển sang ngày khác
             </p>
           </div>
-          <button className="btn-icon" onClick={onClose} title="Đóng">✕</button>
+          <button className="btn-icon" onClick={onClose} title="Đóng">
+            <XIcon size={16} />
+          </button>
         </div>
 
         {/* Date Selector Bar */}
@@ -422,6 +426,7 @@ export default function TaskDateHistoryModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
