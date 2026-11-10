@@ -1,8 +1,35 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
-import { EyeIcon, EyeOffIcon, ShieldCheckIcon } from '../../components/Icons';
+import {
+  EyeIcon,
+  EyeOffIcon,
+  ShieldCheckIcon,
+  ShieldIcon,
+  UserIcon,
+  LockIcon,
+  PaletteIcon,
+  BarChartIcon,
+  SettingsIcon,
+  CameraIcon,
+  SparklesIcon,
+  TrashIcon,
+  SaveIcon,
+  CheckIcon,
+  SunIcon,
+  MoonIcon,
+  LaptopIcon,
+  MailIcon,
+  ClockIcon,
+  MessageSquareIcon,
+  BellIcon,
+  ClipboardListIcon,
+  CheckCircleIcon,
+  ZapIcon,
+  AlertCircleIcon,
+} from '../../components/Icons';
 
 const PRESET_AVATARS = [
   { id: 'admin-1', label: 'Shield Boss', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminBoss' },
@@ -264,20 +291,21 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
         score: 0,
         label: 'Chưa nhập',
         color: 'var(--text-muted)',
-        criteria: { length: false, case: false, number: false, special: false },
+        criteria: { length: false, letter: false, number: false, special: false },
+        isValid: false,
       };
     }
     const criteria = {
-      length: pwd.length >= 8,
-      case: /[A-Z]/.test(pwd) && /[a-z]/.test(pwd),
+      length: pwd.length >= 6,
+      letter: /[a-zA-Z]/.test(pwd),
       number: /[0-9]/.test(pwd),
-      special: /[^A-Za-z0-9]/.test(pwd),
+      special: /[^a-zA-Z0-9]/.test(pwd),
     };
-    const validCount = Object.values(criteria).filter(Boolean).length;
-    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria };
-    if (validCount <= 1) return { score: 1, label: 'Yếu', color: '#ef4444', criteria };
-    if (validCount <= 3) return { score: 2, label: 'Trung bình', color: '#f59e0b', criteria };
-    return { score: 3, label: 'Rất mạnh (Khuyên dùng)', color: '#10b981', criteria };
+    const isValid = criteria.length && criteria.letter && criteria.number && criteria.special;
+
+    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria, isValid: false };
+    if (!isValid) return { score: 2, label: 'Chưa đủ chuẩn (cần cả chữ, số & ký tự đặc biệt)', color: '#f59e0b', criteria, isValid: false };
+    return { score: 3, label: 'Hợp lệ & Rất mạnh', color: '#10b981', criteria, isValid: true };
   };
 
   const pwDetails = getPasswordDetails(newPassword);
@@ -291,6 +319,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
     }
     if (!newPassword || newPassword.length < 6) {
       toast.error('Mật khẩu mới phải có tối thiểu 6 ký tự');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      toast.error('Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (VD: !@#$%^&*)');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -357,7 +389,7 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
   const adminInitials = (name || admin?.name || admin?.email || 'A').charAt(0).toUpperCase();
   const currentAvatarDisplay = previewUrl || avatarUrl;
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 999 }}>
       <div
         className="modal animate-fadein"
@@ -397,11 +429,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                fontSize: '1.2rem',
                 boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)',
               }}
             >
-              🛡️
+              <ShieldCheckIcon size={22} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -438,34 +469,40 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
             }}
           >
             {[
-              { id: 'profile', icon: '👤', label: 'Hồ sơ Quản trị' },
-              { id: 'security', icon: '🔒', label: 'Mật khẩu & Bảo mật' },
-              { id: 'appearance', icon: '🎨', label: 'Giao diện & Tùy chọn' },
-              { id: 'stats', icon: '📊', label: 'Tổng quan Hệ thống' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: 8,
-                  fontSize: '0.86rem',
-                  fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  background: activeTab === tab.id ? 'var(--primary-light)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: '1.05rem' }}>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+              { id: 'profile', icon: UserIcon, label: 'Hồ sơ Quản trị' },
+              { id: 'security', icon: LockIcon, label: 'Mật khẩu & Bảo mật' },
+              { id: 'appearance', icon: PaletteIcon, label: 'Giao diện & Tùy chọn' },
+              { id: 'stats', icon: BarChartIcon, label: 'Tổng quan Hệ thống' },
+            ].map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 8,
+                    fontSize: '0.86rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--primary-light)' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TabIcon size={17} />
+                  </span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
 
             {/* Quick Admin Badge in Nav */}
             <div
@@ -920,17 +957,21 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           <div style={{ flex: 1, background: pwDetails.score >= 3 ? pwDetails.color : 'var(--border)', transition: 'background 0.2s' }} />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.35rem', fontSize: '0.72rem' }}>
-                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.length ? '✓' : '○'}</span> Tối thiểu 8 ký tự
+                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.length ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Tối thiểu 6 ký tự</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.case ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.case ? '✓' : '○'}</span> Chữ hoa & chữ thường
+                          <div style={{ color: pwDetails.criteria.letter ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.letter ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ cái (A-Z, a-z)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.number ? '✓' : '○'}</span> Ít nhất 1 số (0-9)
+                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.number ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ số (0-9)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.special ? '✓' : '○'}</span> Ký tự đặc biệt (!@#$)
+                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.special ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Ký tự đặc biệt (!@#$...)</span>
                           </div>
                         </div>
                       </div>
@@ -981,9 +1022,11 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={loading || (confirmPassword && newPassword !== confirmPassword)}
+                      disabled={loading || (confirmPassword && newPassword !== confirmPassword) || !pwDetails.isValid}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
                     >
-                      {loading ? 'Đang cập nhật...' : '🔐 Cập nhật mật khẩu Admin'}
+                      <LockIcon size={16} />
+                      <span>{loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu Admin'}</span>
                     </button>
                   </div>
                 </form>
@@ -1272,14 +1315,15 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
           isOpen={showDeleteAvatarConfirm}
           title="Xóa ảnh đại diện"
           message="Bạn có chắc chắn muốn xóa ảnh đại diện hiện tại? Ảnh đại diện sẽ được đặt lại về dạng mặc định."
-          confirmText="🗑️ Xóa ảnh"
+          confirmText="Xóa ảnh"
           cancelText="Hủy bỏ"
           variant="danger"
-          icon="🖼️"
+          icon={<TrashIcon size={20} />}
           onConfirm={executeDeleteAvatar}
           onClose={() => setShowDeleteAvatarConfirm(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

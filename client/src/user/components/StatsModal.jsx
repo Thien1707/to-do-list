@@ -1,4 +1,13 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  BarChartIcon,
+  FlameIcon,
+  AwardIcon,
+  CheckIcon,
+  LockIcon,
+  XIcon,
+} from '../../components/Icons';
 
 export default function StatsModal({ stats, tasks = [], categories = [], streak = 1, onClose }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'achievements'
@@ -50,12 +59,14 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
   const progressOffset = total > 0 ? (inProgress / total) * circumference : 0;
   const todoOffset = total > 0 ? (todo / total) * circumference : 0;
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 250 }}>
+  return createPortal(
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 640px)' }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '1.3rem' }}>📊</span>
+            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+              <BarChartIcon size={24} />
+            </span>
             <div>
               <h3 style={{ fontSize: '1.1rem' }}>Báo cáo Năng suất & Thành tựu</h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -63,7 +74,9 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
               </p>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose} title="Đóng">✕</button>
+          <button className="btn-icon" onClick={onClose} title="Đóng">
+            <XIcon size={16} />
+          </button>
         </div>
 
         {/* Tab switch */}
@@ -71,14 +84,18 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
           <button
             className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('overview')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            📈 Biểu đồ thống kê
+            <BarChartIcon size={15} />
+            <span>Biểu đồ thống kê</span>
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'achievements' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('achievements')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            🏆 Thành tựu ({unlockedCount}/{achievements.length})
+            <AwardIcon size={15} />
+            <span>Thành tựu ({unlockedCount}/{achievements.length})</span>
           </button>
         </div>
 
@@ -103,8 +120,22 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                     Chuỗi ngày rèn luyện
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                    <span style={{ fontSize: '1.8rem' }}>🔥</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.35rem' }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.18) 0%, rgba(234, 88, 12, 0.08) 100%)',
+                        border: '1px solid rgba(249, 115, 22, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#f97316',
+                      }}
+                    >
+                      <FlameIcon size={26} />
+                    </div>
                     <div>
                       <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f97316' }}>
                         {streak} ngày liên tiếp
@@ -331,6 +362,7 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -84,6 +84,10 @@ export default function UsersPage() {
       toast.error('Mật khẩu mới phải có tối thiểu 6 ký tự');
       return;
     }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      toast.error('Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (VD: !@#$%^&*)');
+      return;
+    }
 
     setResetting(true);
     try {
@@ -385,11 +389,11 @@ export default function UsersPage() {
 
             <form onSubmit={handleResetPassword}>
               <div className="form-group">
-                <label className="form-label">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                <label className="form-label">Mật khẩu mới (gồm chữ cái, số & ký tự đặc biệt) *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Nhập mật khẩu mới..."
+                  placeholder="VD: MatKhau@2026"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   required

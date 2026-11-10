@@ -13,6 +13,7 @@ import {
   UserIcon,
   AlertCircleIcon,
   SparklesIcon,
+  CheckIcon,
 } from '../../components/Icons';
 
 export default function Register() {
@@ -44,6 +45,12 @@ export default function Register() {
       errs.password = 'Vui lòng nhập mật khẩu';
     } else if (form.password.length < 6) {
       errs.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    } else if (!/[a-zA-Z]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một chữ cái (A-Z hoặc a-z)';
+    } else if (!/[0-9]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một chữ số (0-9)';
+    } else if (!/[^a-zA-Z0-9]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một ký tự đặc biệt (VD: !@#$%^&*)';
     }
 
     if (!form.confirm) {
@@ -200,7 +207,7 @@ export default function Register() {
                 id="reg-password"
                 type={showPassword ? 'text' : 'password'}
                 className={`form-input auth-input-with-icon ${errors.password ? 'input-error' : ''}`}
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder="Gồm chữ cái, số và ký tự đặc biệt"
                 autoComplete="new-password"
                 value={form.password}
                 onChange={e => handleChange('password', e.target.value)}
@@ -216,6 +223,43 @@ export default function Register() {
                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
+
+            {/* Real-time Password Rules Checklist */}
+            {form.password && (
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.65rem 0.85rem',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  fontSize: '0.72rem',
+                }}
+              >
+                <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Quy ước mật khẩu an toàn:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem' }}>
+                  <div style={{ color: form.password.length >= 6 ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {form.password.length >= 6 ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Tối thiểu 6 ký tự</span>
+                  </div>
+                  <div style={{ color: /[a-zA-Z]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[a-zA-Z]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Chữ cái (A-Z, a-z)</span>
+                  </div>
+                  <div style={{ color: /[0-9]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[0-9]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Chữ số (0-9)</span>
+                  </div>
+                  <div style={{ color: /[^a-zA-Z0-9]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[^a-zA-Z0-9]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Ký tự đặc biệt (!@#$...)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {errors.password && (
               <div className="field-error-text">
                 <AlertCircleIcon size={14} />

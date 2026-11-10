@@ -411,6 +411,12 @@ exports.changePassword = async (req, res) => {
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự' });
     }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (ví dụ: !@#$%^&*)',
+      });
+    }
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp' });
     }

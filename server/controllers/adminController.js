@@ -323,6 +323,12 @@ exports.resetUserPassword = async (req, res) => {
     if (!new_password || new_password.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
     }
+    if (!/[a-zA-Z]/.test(new_password) || !/[0-9]/.test(new_password) || !/[^a-zA-Z0-9]/.test(new_password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (ví dụ: !@#$%^&*)',
+      });
+    }
 
     user.password_hash = new_password; // Model hook will hash password automatically
     await user.save();

@@ -4,13 +4,20 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import toast from 'react-hot-toast';
 import AccountSettingsModal from './AccountSettingsModal';
 import ConfirmModal from './ConfirmModal';
-import { ShieldIcon } from '../../components/Icons';
+import {
+  ShieldIcon,
+  BarChartIcon,
+  UserIcon,
+  ClipboardListIcon,
+  SettingsIcon,
+  LogOutIcon,
+} from '../../components/Icons';
 
 const NAV = [
-  { key: 'dashboard', icon: '📊', label: 'Tổng quan hệ thống', path: '/admin/dashboard' },
-  { key: 'users', icon: '👥', label: 'Quản lý người dùng', path: '/admin/users' },
-  { key: 'tasks', icon: '📋', label: 'Tất cả nhiệm vụ', path: '/admin/tasks' },
-  { key: 'system', icon: '⚙️', label: 'Hệ thống & Dữ liệu', path: '/admin/system' },
+  { key: 'dashboard', icon: BarChartIcon, label: 'Tổng quan hệ thống', path: '/admin/dashboard' },
+  { key: 'users', icon: UserIcon, label: 'Quản lý người dùng', path: '/admin/users' },
+  { key: 'tasks', icon: ClipboardListIcon, label: 'Tất cả nhiệm vụ', path: '/admin/tasks' },
+  { key: 'system', icon: SettingsIcon, label: 'Hệ thống & Dữ liệu', path: '/admin/system' },
 ];
 
 export default function AdminLayout({ children, active }) {
@@ -61,19 +68,23 @@ export default function AdminLayout({ children, active }) {
 
         <nav className="sidebar-nav">
           <div className="nav-section">Quản lý & Giám sát</div>
-          {NAV.map(item => (
-            <button
-              key={item.key}
-              className={`nav-item ${active === item.key ? 'active' : ''}`}
-              onClick={() => {
-                navigate(item.path);
-                setSidebarOpen(false);
-              }}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {NAV.map(item => {
+            const NavIcon = item.icon;
+            const isActive = active === item.key;
+            return (
+              <button
+                key={item.key}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  navigate(item.path);
+                  setSidebarOpen(false);
+                }}
+              >
+                <span className="nav-icon"><NavIcon size={18} /></span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         {/* User Card & Settings */}
@@ -104,11 +115,14 @@ export default function AdminLayout({ children, active }) {
               <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {admin?.name || 'Administrator'}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 500 }}>
-                🛡️ Quản trị viên
+              <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <ShieldIcon size={12} />
+                <span>Quản trị viên</span>
               </div>
             </div>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>⚙️</span>
+            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+              <SettingsIcon size={15} />
+            </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
@@ -129,7 +143,7 @@ export default function AdminLayout({ children, active }) {
               onClick={() => setShowAccountModal(true)}
               title="Mở cài đặt tài khoản quản trị"
             >
-              <span>⚙️</span>
+              <SettingsIcon size={14} />
               <span>Cài đặt</span>
             </button>
             <button
@@ -150,7 +164,7 @@ export default function AdminLayout({ children, active }) {
               onClick={() => setShowLogoutConfirm(true)}
               title="Đăng xuất khỏi hệ thống"
             >
-              <span>🚪</span>
+              <LogOutIcon size={14} />
               <span>Đăng xuất</span>
             </button>
           </div>
@@ -167,8 +181,18 @@ export default function AdminLayout({ children, active }) {
             >
               ☰
             </button>
-            <div className="header-title">
-              {NAV.find(n => n.key === active)?.icon} {NAV.find(n => n.key === active)?.label || 'Bảng quản trị'}
+            <div className="header-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {(() => {
+                const currentNav = NAV.find(n => n.key === active);
+                if (!currentNav) return 'Bảng quản trị';
+                const IconComponent = currentNav.icon;
+                return (
+                  <>
+                    <IconComponent size={20} style={{ color: 'var(--primary)' }} />
+                    <span>{currentNav.label}</span>
+                  </>
+                );
+              })()}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -182,7 +206,9 @@ export default function AdminLayout({ children, active }) {
                 {admin?.avatar_url ? <img src={admin.avatar_url} alt="" /> : initials}
               </div>
               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{admin?.name?.split(' ')[0] || 'Admin'}</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>⚙️</span>
+              <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+                <SettingsIcon size={13} />
+              </span>
             </button>
           </div>
         </header>

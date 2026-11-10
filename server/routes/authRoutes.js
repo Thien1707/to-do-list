@@ -16,7 +16,15 @@ const handleValidation = (req, res, next) => {
 const validateRegister = [
   body('name').trim().notEmpty().withMessage('Họ và tên không được để trống'),
   body('email').isEmail().withMessage('Email không hợp lệ'),
-  body('password').isLength({ min: 6 }).withMessage('Mật khẩu tối thiểu 6 ký tự'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu tối thiểu 6 ký tự')
+    .matches(/[a-zA-Z]/)
+    .withMessage('Mật khẩu phải chứa ít nhất một chữ cái')
+    .matches(/[0-9]/)
+    .withMessage('Mật khẩu phải chứa ít nhất một chữ số')
+    .matches(/[^a-zA-Z0-9]/)
+    .withMessage('Mật khẩu phải chứa ít nhất một ký tự đặc biệt (ví dụ: !@#$%^&*)'),
   handleValidation,
 ];
 

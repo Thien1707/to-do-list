@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Modern In-App Confirmation Modal (Replaces browser window.confirm)
@@ -64,7 +65,7 @@ export default function ConfirmModal({
 
   const style = variantStyles[variant] || variantStyles.primary;
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay"
       onClick={e => e.target === e.currentTarget && !loading && onClose()}
@@ -184,6 +185,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
