@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import ModalOverlay from '../../components/ModalOverlay';
 import {
   BarChartIcon,
   FlameIcon,
@@ -17,6 +18,9 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
   const inProgress = stats.in_progress || 0;
   const todo = stats.todo || 0;
   const overdue = stats.overdue || 0;
+  const bestStreak = Math.max(streak, stats.best_streak ?? 0);
+  const todayCompleted = stats.today_completed ?? 0;
+  const streakActiveToday = stats.streak_active_today ?? (todayCompleted > 0);
 
   const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
 
@@ -46,7 +50,7 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
     { id: 2, title: 'Đập tan trì hoãn', desc: 'Hoàn thành ít nhất 1 nhiệm vụ', icon: '🎯', unlocked: done >= 1 },
     { id: 3, title: 'Chiến binh năng suất', desc: 'Hoàn thành 5 nhiệm vụ', icon: '⚡', unlocked: done >= 5, progress: `${Math.min(done, 5)}/5` },
     { id: 4, title: 'Bậc thầy hoàn thành', desc: 'Hoàn thành 10 nhiệm vụ', icon: '🏆', unlocked: done >= 10, progress: `${Math.min(done, 10)}/10` },
-    { id: 5, title: 'Giữ lửa đam mê', desc: 'Đạt chuỗi streak 3 ngày liên tiếp', icon: '🔥', unlocked: streak >= 3, progress: `${Math.min(streak, 3)}/3 ngày` },
+    { id: 5, title: 'Giữ lửa đam mê', desc: 'Đạt chuỗi streak 3 ngày liên tiếp', icon: '🔥', unlocked: bestStreak >= 3, progress: `${Math.min(bestStreak, 3)}/3 ngày` },
     { id: 6, title: 'Kỷ luật thép', desc: 'Không có nhiệm vụ nào bị quá hạn', icon: '🛡️', unlocked: total > 0 && overdue === 0 },
   ];
 
@@ -60,9 +64,18 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
   const todoOffset = total > 0 ? (todo / total) * circumference : 0;
 
   return createPortal(
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
-      <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 640px)' }}>
-        <div className="modal-header">
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
+      <div
+        className="modal animate-fadein"
+        style={{
+          maxWidth: 'min(94vw, 660px)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div className="modal-header" style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
               <BarChartIcon size={24} />
@@ -80,7 +93,15 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
         </div>
 
         {/* Tab switch */}
-        <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem 1.25rem 0', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
           <button
             className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('overview')}
@@ -99,7 +120,7 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {activeTab === 'overview' ? (
             <>
               {/* Productivity Score Highlight */}
@@ -137,11 +158,32 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                       <FlameIcon size={26} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f97316' }}>
-                        {streak} ngày liên tiếp
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f97316' }}>
+                          {streak} ngày liên tiếp
+                        </span>
+                        {bestStreak > 0 && (
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: 99,
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            Kỷ lục: {bestStreak} ngày
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Hoàn thành nhiệm vụ mỗi ngày để duy trì ngọn lửa!
+                      <div style={{ fontSize: '0.75rem', color: streakActiveToday ? '#10b981' : 'var(--text-secondary)', fontWeight: streakActiveToday ? 600 : 400, marginTop: '0.15rem' }}>
+                        {streakActiveToday
+                          ? `✓ Đã giữ lửa hôm nay (${todayCompleted} nhiệm vụ hoàn thành)`
+                          : streak > 0
+                            ? '⏳ Hoàn thành 1 nhiệm vụ hôm nay để không bị đứt chuỗi!'
+                            : 'Hoàn thành ít nhất 1 nhiệm vụ mỗi ngày để thắp sáng chuỗi!'}
                       </div>
                     </div>
                   </div>
@@ -155,7 +197,13 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                     {completionRate}%
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                    {completionRate >= 80 ? '🌟 Xuất sắc!' : completionRate >= 50 ? '⚡ Khá tốt!' : '💪 Cần cố gắng hơn'}
+                    {completionRate >= 80 && overdue === 0
+                      ? '🌟 Xuất sắc!'
+                      : completionRate >= 80
+                        ? `⚡ Tốt (còn ${overdue} quá hạn)`
+                        : completionRate >= 50
+                          ? '⚡ Khá tốt!'
+                          : '💪 Cần cố gắng hơn'}
                   </div>
                 </div>
               </div>
@@ -362,13 +410,13 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
           )}
         </div>
 
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn btn-primary" onClick={onClose}>
             Đã hiểu
           </button>
         </div>
       </div>
-    </div>,
+    </ModalOverlay>,
     document.body
   );
 }

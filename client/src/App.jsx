@@ -19,7 +19,7 @@ function UserApp() {
   return (
     <AuthProvider>
       <UserRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} />
+      <Toaster position="top-right" toastOptions={toastOptions} containerStyle={{ zIndex: 20000 }} />
     </AuthProvider>
   );
 }
@@ -28,7 +28,7 @@ function AdminApp() {
   return (
     <AdminAuthProvider>
       <AdminRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} />
+      <Toaster position="top-right" toastOptions={toastOptions} containerStyle={{ zIndex: 20000 }} />
     </AdminAuthProvider>
   );
 }

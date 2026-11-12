@@ -125,6 +125,12 @@ router.post(
   (req, res, next) => {
     authCtrl.avatarUpload.single('avatar')(req, res, (err) => {
       if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'Không thể tải ảnh lên: Kích thước tệp vượt quá giới hạn tối đa 5MB.',
+          });
+        }
         return res.status(400).json({ success: false, message: err.message });
       }
       next();

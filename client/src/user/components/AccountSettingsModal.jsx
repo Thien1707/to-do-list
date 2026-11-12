@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
 import {
   EyeIcon,
   EyeOffIcon,
@@ -28,6 +29,7 @@ import {
   CheckCircleIcon,
   ZapIcon,
   AlertCircleIcon,
+  XIcon,
 } from '../../components/Icons';
 
 const PRESET_AVATARS = [
@@ -51,7 +53,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
 
   // Profile Form State
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
   const [jobTitle, setJobTitle] = useState(user?.job_title || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -60,6 +61,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   // Avatar Upload State
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarError, setAvatarError] = useState('');
   const [showPresets, setShowPresets] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -93,7 +95,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
           const freshUser = data.data.user;
           setUserData(freshUser);
           setName(freshUser.name || '');
-          setPhone(freshUser.phone || '');
           setJobTitle(freshUser.job_title || '');
           setDepartment(freshUser.department || '');
           setBio(freshUser.bio || '');
@@ -121,12 +122,27 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setAvatarError('');
+
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn một file ảnh hợp lệ (PNG, JPG, WEBP, GIF)');
+      const msg = 'Không thể tải ảnh lên: Vui lòng chọn tệp ảnh hợp lệ (JPG, PNG, WEBP, GIF).';
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh tối đa là 5MB');
+
+    const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_AVATAR_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const msg = `Không thể tải ảnh lên: Tệp "${file.name}" (${sizeMB} MB) vượt quá giới hạn tối đa 5MB.`;
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
 
@@ -139,6 +155,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const handleUploadAvatar = async () => {
     if (!selectedFile) return;
     setLoading(true);
+    setAvatarError('');
     try {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
@@ -152,10 +169,13 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
         setAvatarUrl(data.data.avatar_url);
         setSelectedFile(null);
         setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         if (onUpdateUser) onUpdateUser(data.data.user);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Tải ảnh đại diện thất bại');
+      const msg = err.response?.data?.message || 'Không thể tải ảnh đại diện lên';
+      setAvatarError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -209,13 +229,8 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const handleCancelSelectedFile = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
+    setAvatarError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // Vietnam Phone Format Validation Algorithm
-  const isPhoneValid = (p) => {
-    if (!p || !p.trim()) return true;
-    return /^(0|\+84)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/.test(p.trim().replace(/\s+/g, ''));
   };
 
   // Save Profile Info (Automatically uploads selected avatar file if present)
@@ -223,11 +238,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Họ và tên không được để trống');
-      return;
-    }
-
-    if (phone && !isPhoneValid(phone)) {
-      toast.error('Số điện thoại không đúng định dạng Việt Nam (10 chữ số)');
       return;
     }
 
@@ -252,7 +262,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
 
       const payload = {
         name: name.trim(),
-        phone: phone ? phone.trim().replace(/\s+/g, '') : null,
         job_title: jobTitle.trim(),
         department: department.trim(),
         bio: bio.trim(),
@@ -380,7 +389,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const currentAvatarDisplay = previewUrl || avatarUrl;
 
   return createPortal(
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 999 }}>
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
       <div
         className="modal animate-fadein"
         style={{
@@ -657,6 +666,40 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                       )}
                     </div>
 
+                    {avatarError && (
+                      <div
+                        role="alert"
+                        style={{
+                          marginTop: '0.65rem',
+                          padding: '0.55rem 0.75rem',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          borderRadius: 8,
+                          color: 'var(--danger)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <AlertCircleIcon size={16} style={{ flexShrink: 0 }} />
+                          <span>{avatarError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAvatarError('')}
+                          className="btn-icon"
+                          style={{ width: 20, height: 20, color: 'var(--danger)', flexShrink: 0 }}
+                          title="Đóng thông báo"
+                        >
+                          <XIcon size={13} />
+                        </button>
+                      </div>
+                    )}
+
                     {selectedFile && (
                       <div
                         style={{
@@ -806,29 +849,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label className="form-label" style={{ margin: 0 }}>Số điện thoại</label>
-                        {phone && !isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>
-                            ⚠️ Cần 10 chữ số (VD: 0912 345 678)
-                          </span>
-                        )}
-                        {phone && isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
-                            ✓ Hợp lệ
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="tel"
-                        className={`form-input ${phone && !isPhoneValid(phone) ? 'input-error' : ''}`}
-                        placeholder="VD: 0912 345 678"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Chức danh / Vị trí</label>
                       <input
                         type="text"
@@ -838,17 +858,17 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         onChange={e => setJobTitle(e.target.value)}
                       />
                     </div>
-                  </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Phòng ban / Bộ phận</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="VD: Khối Công nghệ thông tin, Thiết kế UI/UX..."
-                      value={department}
-                      onChange={e => setDepartment(e.target.value)}
-                    />
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Phòng ban / Bộ phận</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="VD: Khối Công nghệ thông tin, Thiết kế UI/UX..."
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -1388,7 +1408,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
           onClose={() => setShowDeleteAvatarConfirm(false)}
         />
       )}
-    </div>,
+    </ModalOverlay>,
     document.body
   );
 }

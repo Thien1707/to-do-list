@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { CalendarIcon, XIcon } from '../../components/Icons';
+import ModalOverlay from '../../components/ModalOverlay';
 
 const PRIORITY_LABELS = {
   low: { label: 'Thấp', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
@@ -24,6 +25,14 @@ function formatDisplayDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+function getLocalTodayISO() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function TaskDateHistoryModal({
   isOpen,
   onClose,
@@ -32,10 +41,7 @@ export default function TaskDateHistoryModal({
   onViewTaskHistory,
   onEditTask,
 }) {
-  const [selectedDate, setSelectedDate] = useState(() => {
-    if (initialDate) return initialDate;
-    return new Date().toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalTodayISO());
   const [data, setData] = useState({ current_tasks: [], rescheduled_from_here: [] });
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +63,11 @@ export default function TaskDateHistoryModal({
   const fetchDateHistory = async (date) => {
     setLoading(true);
     try {
-      const params = { date };
+      const params = {
+        date,
+        created_from: new Date(`${date}T00:00:00`).toISOString(),
+        created_to: new Date(`${date}T23:59:59.999`).toISOString(),
+      };
       if (projectId) params.project_id = projectId;
       const res = await api.get('/tasks/by-date', { params });
       setData(res.data.data || { current_tasks: [], rescheduled_from_here: [] });
@@ -74,8 +84,8 @@ export default function TaskDateHistoryModal({
   const rescheduledTasks = data.rescheduled_from_here || [];
 
   return createPortal(
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
-      <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 840px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
+      <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 840px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div className="modal-header" style={{ paddingBottom: '0.85rem' }}>
           <div>
@@ -117,7 +127,7 @@ export default function TaskDateHistoryModal({
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+              onClick={() => setSelectedDate(getLocalTodayISO())}
               style={{ fontSize: '0.78rem' }}
             >
               Hôm nay
@@ -136,7 +146,7 @@ export default function TaskDateHistoryModal({
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
               <div className="spinner" style={{ margin: '0 auto 1rem' }} />
@@ -149,7 +159,7 @@ export default function TaskDateHistoryModal({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                   <h4 style={{ margin: 0, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <span>📌</span>
-                    <span>Công việc lên lịch cho ngày {formatDisplayDate(selectedDate)}</span>
+                    <span>Công việc ngày {formatDisplayDate(selectedDate)} (Lên lịch / Tạo mới)</span>
                     <span className="badge" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
                       {currentTasks.length}
                     </span>
@@ -168,7 +178,7 @@ export default function TaskDateHistoryModal({
                       fontSize: '0.85rem',
                     }}
                   >
-                    Chưa có nhiệm vụ nào được lên lịch cho ngày này.
+                    Chưa có nhiệm vụ nào được tạo hoặc lên lịch cho ngày này.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -420,13 +430,13 @@ export default function TaskDateHistoryModal({
         </div>
 
         {/* Footer */}
-        <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Đóng
           </button>
         </div>
       </div>
-    </div>,
+    </ModalOverlay>,
     document.body
   );
 }

@@ -345,13 +345,17 @@ export default function Dashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const params = { limit: 100 };
+      const params = { limit: 100, tz_offset: new Date().getTimezoneOffset() };
       if (filterStatus) params.status = filterStatus;
       if (filterPriority) params.priority = filterPriority;
       if (filterCategory) params.category_id = filterCategory;
       if (filterEditStatus) params.is_edited = filterEditStatus;
       if (filterStoryPoints) params.story_points = filterStoryPoints;
-      if (filterDate) params.due_date = filterDate;
+      if (filterDate) {
+        params.filter_date = filterDate;
+        params.created_from = new Date(`${filterDate}T00:00:00`).toISOString();
+        params.created_to = new Date(`${filterDate}T23:59:59.999`).toISOString();
+      }
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       const { data: body } = await api.get('/tasks/dashboard', { params });
@@ -410,18 +414,6 @@ export default function Dashboard() {
       if (status === 'done') {
         triggerCelebration();
         toast.success('Xuất sắc! Đã hoàn thành nhiệm vụ 🎉');
-
-        // Increment streak if not updated today
-        if (user?.id) {
-          const lastDate = localStorage.getItem(`last_completed_date_${user.id}`);
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (lastDate !== todayStr) {
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            localStorage.setItem(`user_streak_${user.id}`, String(newStreak));
-            localStorage.setItem(`last_completed_date_${user.id}`, todayStr);
-          }
-        }
       } else {
         toast.success('Đã cập nhật trạng thái');
       }
@@ -647,9 +639,15 @@ export default function Dashboard() {
             <div
               className="streak-badge-header"
               onClick={() => setShowStatsModal(true)}
-              title="Xem chuỗi ngày & Báo cáo năng suất, thành tựu"
+              title={
+                stats.streak_active_today
+                  ? `Chuỗi ${streak} ngày — Hôm nay đã giữ lửa (${stats.today_completed || 1} nhiệm vụ xong)`
+                  : streak > 0
+                    ? `Chuỗi ${streak} ngày — Hoàn thành 1 nhiệm vụ hôm nay để giữ chuỗi!`
+                    : 'Hoàn thành 1 nhiệm vụ hôm nay để bắt đầu chuỗi ngày!'
+              }
             >
-              <FlameIcon size={16} fill="currentColor" />
+              <FlameIcon size={16} fill={stats.streak_active_today ? 'currentColor' : 'none'} />
               <span style={{ fontWeight: 700, fontSize: '0.84rem' }}>{streak} ngày</span>
             </div>
 
@@ -818,7 +816,7 @@ export default function Dashboard() {
               style={{ width: 'auto', padding: '0.4rem 0.65rem' }}
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              title="Lọc theo ngày thực hiện"
+              title="Lọc theo ngày tạo hoặc ngày thực hiện"
             />
 
             <select

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import toast from 'react-hot-toast';
+import ModalOverlay from '../../components/ModalOverlay';
 import {
   FolderKanbanIcon,
   PlusIcon,
@@ -100,7 +101,7 @@ function CreateProjectModal({ onClose, onCreated }) {
   };
 
   return createPortal(
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 1000 }}>
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 520px)' }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -202,7 +203,7 @@ function CreateProjectModal({ onClose, onCreated }) {
           </div>
         </form>
       </div>
-    </div>,
+    </ModalOverlay>,
     document.body
   );
 }

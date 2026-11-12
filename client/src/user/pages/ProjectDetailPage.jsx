@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
 import TaskDateHistoryModal from '../components/TaskDateHistoryModal';
+import ModalOverlay from '../../components/ModalOverlay';
 
 const STATUS_COLUMNS = [
   { key: 'todo', label: 'To Do', color: '#64748b', icon: '📋' },
@@ -181,7 +182,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, projectMembers, sp
   };
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <ModalOverlay onClose={onClose}>
       <div className="task-detail-modal animate-fadein">
         {/* Header */}
         <div className="task-detail-header">
@@ -706,7 +707,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, projectMembers, sp
           />
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 
@@ -1503,7 +1504,7 @@ function BacklogView({ project, tasks, setTasks, sprints, setSprints, projectMem
 
       {/* Create Sprint Modal */}
       {showSprintModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSprintModal(false)}>
+        <ModalOverlay onClose={() => setShowSprintModal(false)}>
           <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 480px)' }}>
             <div className="modal-header">
               <h3>🏃 Tạo Sprint mới</h3>
@@ -1558,12 +1559,12 @@ function BacklogView({ project, tasks, setTasks, sprints, setSprints, projectMem
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Edit Sprint Modal */}
       {editingSprint && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingSprint(null)}>
+        <ModalOverlay onClose={() => setEditingSprint(null)}>
           <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 480px)' }}>
             <div className="modal-header">
               <h3>✏️ Chỉnh sửa Sprint</h3>
@@ -1628,7 +1629,7 @@ function BacklogView({ project, tasks, setTasks, sprints, setSprints, projectMem
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Sprint Action Confirm Modal */}
@@ -2053,9 +2054,8 @@ function MembersPanel({ project, projectMembers, onMemberAdded }) {
 
       {/* MODAL GIAO DIỆN XÓA THÀNH VIÊN HIỆN ĐẠI (THAY THẾ WINDOW.CONFIRM) */}
       {memberToDelete && (
-        <div
-          className="modal-overlay"
-          onClick={e => e.target === e.currentTarget && !deleting && setMemberToDelete(null)}
+        <ModalOverlay
+          onClose={() => !deleting && setMemberToDelete(null)}
           style={{ zIndex: 300 }}
         >
           <div className="modal animate-fadein" style={{ maxWidth: 440 }}>
@@ -2141,7 +2141,7 @@ function MembersPanel({ project, projectMembers, onMemberAdded }) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );
@@ -2630,7 +2630,7 @@ function CreateTaskModal({ project, projectMembers, sprints, onSprintCreated, on
   };
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <ModalOverlay onClose={onClose}>
       <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 560px)' }}>
         <div className="modal-header">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
@@ -2798,7 +2798,7 @@ function CreateTaskModal({ project, projectMembers, sprints, onSprintCreated, on
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

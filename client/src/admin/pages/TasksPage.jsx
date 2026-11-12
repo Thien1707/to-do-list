@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
 
 const STATUS_MAP = {
   todo: '📋 Cần làm',
@@ -671,9 +672,8 @@ export default function TasksPage() {
 
       {/* Admin Edit Task Modal */}
       {editingTask && (
-        <div
-          className="modal-overlay"
-          onClick={e => e.target === e.currentTarget && setEditingTask(null)}
+        <ModalOverlay
+          onClose={() => setEditingTask(null)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -765,7 +765,7 @@ export default function TasksPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* In-app Confirmation Modal */}

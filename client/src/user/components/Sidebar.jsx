@@ -6,6 +6,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import AccountSettingsModal from './AccountSettingsModal';
 import ConfirmModal from './ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
 import {
   TaskFlowLogo,
   HomeIcon,
@@ -473,9 +474,8 @@ export default function Sidebar({
 
       {/* Modal: Add Category with rich icon picker & file upload */}
       {showCatModal && createPortal(
-        <div
-          className="modal-overlay"
-          onClick={e => e.target === e.currentTarget && setShowCatModal(false)}
+        <ModalOverlay
+          onClose={() => setShowCatModal(false)}
           style={{ zIndex: 9999 }}
         >
             <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 460px)' }}>
@@ -632,7 +632,7 @@ export default function Sidebar({
                 </div>
               </form>
             </div>
-          </div>,
+          </ModalOverlay>,
           document.body
         )}
         {catToDelete && (

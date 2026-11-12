@@ -38,14 +38,14 @@ const avatarStorage = multer.diskStorage({
 
 exports.avatarUpload = multer({
   storage: avatarStorage,
-  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const mime = (file.mimetype || '').toLowerCase();
     if (ALLOWED_AVATAR_EXTS.includes(ext) && ALLOWED_AVATAR_MIMES.includes(mime)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file hình ảnh hợp lệ (JPG, PNG, WEBP, GIF), tối đa 3MB'));
+      cb(new Error('Chỉ chấp nhận file hình ảnh hợp lệ (JPG, PNG, WEBP, GIF), tối đa 5MB'));
     }
   },
 });

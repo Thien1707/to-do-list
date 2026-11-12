@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -363,9 +364,8 @@ export default function UsersPage() {
 
       {/* Reset Password Modal */}
       {resetModalUser && (
-        <div
-          className="modal-overlay"
-          onClick={e => e.target === e.currentTarget && setResetModalUser(null)}
+        <ModalOverlay
+          onClose={() => setResetModalUser(null)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -411,7 +411,7 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* In-app Confirmation Modal */}
