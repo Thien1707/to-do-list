@@ -67,7 +67,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
       <div className="auth-ambient-glow auth-ambient-glow-1" aria-hidden="true" />
       <div className="auth-ambient-glow auth-ambient-glow-2" aria-hidden="true" />
 
@@ -172,6 +172,6 @@ export default function AdminLogin() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

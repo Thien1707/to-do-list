@@ -38,7 +38,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
       <div className="auth-box animate-fadein">
         <div className="auth-logo">
           <div className="auth-logo-icon">✅</div>
@@ -79,6 +79,6 @@ export default function ForgotPassword() {
           <Link to="/login">← Quay lại đăng nhập</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

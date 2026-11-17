@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /api/
 Disallow: /uploads/
 
-Sitemap: https://to-do-list.vercel.app/sitemap.xml
+Sitemap: https://to-do-list-khaki-alpha-95.vercel.app/sitemap.xml

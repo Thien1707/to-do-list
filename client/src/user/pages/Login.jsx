@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { startGoogleSignIn } from '../utils/googleAuth';
 import toast from 'react-hot-toast';
 import {
   TaskFlowLogo,
@@ -74,12 +73,14 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth || !googleProvider) {
-      toast.error('Chưa thể kết nối Google Firebase. Vui lòng đăng nhập bằng Email và Mật khẩu.');
-      return;
-    }
     setGoogleLoading(true);
     try {
+      const { startGoogleSignIn } = await import('../utils/googleAuth');
+      const { auth, googleProvider } = await import('../config/firebase');
+      if (!auth || !googleProvider) {
+        toast.error('Chưa thể kết nối Google Firebase. Vui lòng đăng nhập bằng Email và Mật khẩu.');
+        return;
+      }
       const result = await startGoogleSignIn();
       if (!result) return;
       await loginWithGoogleFirebase(result.user);
@@ -114,7 +115,7 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
       {/* Decorative ambient background glows */}
       <div className="auth-ambient-glow auth-ambient-glow-1" aria-hidden="true" />
       <div className="auth-ambient-glow auth-ambient-glow-2" aria-hidden="true" />
@@ -234,6 +235,6 @@ export default function Login() {
           Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

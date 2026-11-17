@@ -597,7 +597,7 @@ export default function Dashboard() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="main-content">
+      <main className="main-content" id="main-content">
         {isProjectsView ? (
           selectedProject ? (
             <Suspense fallback={<div className="page-loader"><div className="spinner" /></div>}>
@@ -1013,7 +1013,7 @@ export default function Dashboard() {
         </div>
           </>
         )}
-      </div>
+      </main>
 
       {/* Task Edit/Create Modal */}
       {showModal && (

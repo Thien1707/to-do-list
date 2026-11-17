@@ -1252,7 +1252,7 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 28px 28px;
 }
 
-/* Ambient glow blobs floating smoothly in background */
+/* Ambient glow blobs floating smoothly in background (composited on GPU) */
 .auth-ambient-glow {
   position: absolute;
   border-radius: 50%;
@@ -1261,6 +1261,9 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
   z-index: 0;
   opacity: 0.65;
   transition: opacity 0.5s ease;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 .auth-ambient-glow-1 {
@@ -1282,15 +1285,15 @@ p  { color: var(--text-secondary); font-size: 0.92rem; }
 }
 
 @keyframes authGlowFloat1 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, 30px) scale(1.08); }
-  100% { transform: translate(-20px, 50px) scale(0.95); }
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(40px, 30px, 0) scale(1.08); }
+  100% { transform: translate3d(-20px, 50px, 0) scale(0.95); }
 }
 
 @keyframes authGlowFloat2 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-50px, -30px) scale(1.1); }
-  100% { transform: translate(30px, -40px) scale(0.92); }
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-50px, -30px, 0) scale(1.1); }
+  100% { transform: translate3d(30px, -40px, 0) scale(0.92); }
 }
 
 /* Auth Box - Glassmorphism Card */

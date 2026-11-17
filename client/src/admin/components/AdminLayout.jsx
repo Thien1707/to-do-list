@@ -171,7 +171,7 @@ export default function AdminLayout({ children, active }) {
         </div>
       </aside>
 
-      <div className="admin-main">
+      <main className="admin-main" id="main-content">
         <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
@@ -242,7 +242,7 @@ export default function AdminLayout({ children, active }) {
             onClose={() => setShowLogoutConfirm(false)}
           />
         )}
-      </div>
+      </main>
     </div>
   );
 }

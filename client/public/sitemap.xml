@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://to-do-list.vercel.app/</loc>
+    <loc>https://to-do-list-khaki-alpha-95.vercel.app/</loc>
     <lastmod>2026-11-17</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://to-do-list.vercel.app/login</loc>
+    <loc>https://to-do-list-khaki-alpha-95.vercel.app/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://to-do-list.vercel.app/register</loc>
+    <loc>https://to-do-list-khaki-alpha-95.vercel.app/register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

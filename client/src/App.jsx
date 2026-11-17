@@ -1,45 +1,26 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './user/context/AuthContext';
-import { AdminAuthProvider } from './admin/context/AdminAuthContext';
-import UserRoutes from './user/UserRoutes';
-import AdminRoutes from './admin/AdminRoutes';
 
-const toastOptions = {
-  style: {
-    background: 'var(--bg-elevated)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-  },
-  duration: 3000,
-};
+const UserApp = lazy(() => import('./user/UserApp'));
+const AdminApp = lazy(() => import('./admin/AdminApp'));
 
-function UserApp() {
+function AppFallback() {
   return (
-    <AuthProvider>
-      <UserRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} containerStyle={{ zIndex: 20000 }} />
-    </AuthProvider>
-  );
-}
-
-function AdminApp() {
-  return (
-    <AdminAuthProvider>
-      <AdminRoutes />
-      <Toaster position="top-right" toastOptions={toastOptions} containerStyle={{ zIndex: 20000 }} />
-    </AdminAuthProvider>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg, #f8fafc)' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid rgba(99, 102, 241, 0.2)', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+    </div>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
-        <Route path="/*" element={<UserApp />} />
-      </Routes>
+      <Suspense fallback={<AppFallback />}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/*" element={<UserApp />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

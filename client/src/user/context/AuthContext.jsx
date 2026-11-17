@@ -2,12 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
-import { auth } from '../config/firebase';
-import {
-  getGoogleRedirectResultOnce,
-  GOOGLE_REDIRECT_PENDING_KEY,
-  waitForFirebaseUser,
-} from '../utils/googleAuth';
+
+const GOOGLE_REDIRECT_PENDING_KEY = 'taskflow_google_redirect_pending';
 
 const AuthContext = createContext(null);
 
@@ -49,20 +45,24 @@ export const AuthProvider = ({ children }) => {
     (async () => {
       const pendingGoogle = sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1';
 
+      if (!pendingGoogle) {
+        setBootstrapping(false);
+        return;
+      }
+
       try {
+        const { getGoogleRedirectResultOnce, waitForFirebaseUser } = await import('../utils/googleAuth');
         const result = await getGoogleRedirectResultOnce();
         if (cancelled) return;
 
         let firebaseUser = result?.user || null;
 
-        if (!firebaseUser && pendingGoogle) {
+        if (!firebaseUser) {
           firebaseUser = await waitForFirebaseUser();
         }
 
         if (!firebaseUser) {
-          if (pendingGoogle) {
-            sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
-          }
+          sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
           return;
         }
 
