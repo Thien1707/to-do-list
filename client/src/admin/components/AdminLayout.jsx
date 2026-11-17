@@ -87,7 +87,49 @@ export default function AdminLayout({ children, active }) {
           })}
         </nav>
 
-        {/* User Card & Settings */}
+        {/* User Gateway Button: Switch back to User Dashboard (Styled like Ảnh 3) */}
+        <div style={{ padding: '0 0.75rem', marginBottom: '0.65rem' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn btn-sm btn-full"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.65rem',
+              width: '100%',
+              padding: '0.65rem 0.85rem',
+              fontWeight: 600,
+              fontSize: '0.84rem',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+              color: '#ffffff',
+              boxShadow: '0 3px 10px rgba(37, 99, 235, 0.3)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            title="Chuyển sang Bảng làm việc của Người dùng (User)"
+          >
+            <UserIcon size={17} style={{ flexShrink: 0, color: '#e0f2fe' }} />
+            <span style={{ fontWeight: 600, letterSpacing: '0.2px' }}>Xem giao diện User</span>
+            <span
+              style={{
+                fontSize: '0.65rem',
+                background: 'rgba(255, 255, 255, 0.25)',
+                padding: '2px 6px',
+                borderRadius: 4,
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+                lineHeight: 1.2,
+              }}
+            >
+              USER
+            </span>
+          </button>
+        </div>
+
+        {/* User Card & Logout (Clean, no redundant Settings button) */}
         <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border)' }}>
           <div
             onClick={() => setShowAccountModal(true)}
@@ -120,54 +162,31 @@ export default function AdminLayout({ children, active }) {
                 <span>Quản trị viên</span>
               </div>
             </div>
-            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-              <SettingsIcon size={15} />
-            </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.35rem',
-                padding: '0.45rem 0.35rem',
-                fontSize: '0.78rem',
-                whiteSpace: 'nowrap',
-                borderRadius: 6,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-              }}
-              onClick={() => setShowAccountModal(true)}
-              title="Mở cài đặt tài khoản quản trị"
-            >
-              <SettingsIcon size={14} />
-              <span>Cài đặt</span>
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.35rem',
-                padding: '0.45rem 0.35rem',
-                fontSize: '0.78rem',
-                whiteSpace: 'nowrap',
-                borderRadius: 6,
-                color: 'var(--danger)',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-              }}
-              onClick={() => setShowLogoutConfirm(true)}
-              title="Đăng xuất khỏi hệ thống"
-            >
-              <LogOutIcon size={14} />
-              <span>Đăng xuất</span>
-            </button>
-          </div>
+          <button
+            className="btn btn-ghost btn-sm btn-full"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              width: '100%',
+              padding: '0.5rem 0.75rem',
+              fontSize: '0.82rem',
+              borderRadius: 8,
+              color: 'var(--danger)',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Đăng xuất khỏi bảng quản trị"
+          >
+            <LogOutIcon size={15} />
+            <span>Đăng xuất</span>
+          </button>
         </div>
       </aside>
 
@@ -197,26 +216,24 @@ export default function AdminLayout({ children, active }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <button
-              onClick={() => navigate('/dashboard')}
-              className="btn btn-sm btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', borderRadius: 8 }}
-              title="Chuyển sang Bảng làm việc của Người dùng"
-            >
-              <span>👤 Xem giao diện User</span>
-            </button>
-            <button
               onClick={() => setShowAccountModal(true)}
               className="btn btn-sm btn-ghost"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.3rem 0.65rem', borderRadius: 99, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
-              title="Nhấn để mở Cài đặt tài khoản"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.3rem 0.75rem',
+                borderRadius: 99,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+              }}
+              title="Nhấn để mở Cài đặt tài khoản Admin"
             >
               <div className="user-avatar" style={{ width: 22, height: 22, fontSize: '0.65rem' }}>
                 {admin?.avatar_url ? <img src={admin.avatar_url} alt="" /> : initials}
               </div>
               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{admin?.name?.split(' ')[0] || 'Admin'}</span>
-              <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
-                <SettingsIcon size={13} />
-              </span>
             </button>
           </div>
         </header>

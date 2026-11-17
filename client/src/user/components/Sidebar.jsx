@@ -23,6 +23,7 @@ import {
   CameraIcon,
   XIcon,
   TrashIcon,
+  ShieldCheckIcon,
 } from '../../components/Icons';
 
 const NAV_ITEMS = [
@@ -379,30 +380,33 @@ export default function Sidebar({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.55rem 0.75rem',
+                justifyContent: 'center',
+                gap: '0.65rem',
+                width: '100%',
+                padding: '0.65rem 0.85rem',
                 fontWeight: 600,
-                borderRadius: 8,
+                fontSize: '0.84rem',
+                borderRadius: 10,
                 background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                 color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
+                boxShadow: '0 3px 10px rgba(79, 70, 229, 0.3)',
                 border: 'none',
                 cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
               title="Chuyển sang Bảng điều khiển Quản trị viên (Admin)"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>🛡️</span>
-                <span>Bảng Quản trị Admin</span>
-              </div>
+              <ShieldCheckIcon size={17} style={{ flexShrink: 0, color: '#e0e7ff' }} />
+              <span style={{ fontWeight: 600, letterSpacing: '0.2px' }}>Bảng Quản trị Admin</span>
               <span
                 style={{
                   fontSize: '0.65rem',
                   background: 'rgba(255, 255, 255, 0.25)',
-                  padding: '1px 6px',
+                  padding: '2px 6px',
                   borderRadius: 4,
                   fontWeight: 700,
                   letterSpacing: '0.5px',
+                  lineHeight: 1.2,
                 }}
               >
                 ADMIN
