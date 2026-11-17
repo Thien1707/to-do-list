@@ -53,3 +53,4 @@ Dành cho vai trò Tester báo cáo lại cho Dev (Thiện BE & Hòa FE) sửa l
 - **NFR:** Yêu cầu phi chức năng - Hiệu năng, Bảo mật, Rate limit (`TC_NFR_01`,...)
 
 Mỗi dòng testcase mới sẽ ghi rõ cột **Ngày thêm (Date Added)** và **Ngày chạy (Execution Date)**.
+
