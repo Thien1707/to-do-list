@@ -136,6 +136,9 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = (updatedUser) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    if (updatedUser?.role === 'admin') {
+      localStorage.setItem('adminUser', JSON.stringify(updatedUser));
+    }
     setUser(updatedUser);
   };
 

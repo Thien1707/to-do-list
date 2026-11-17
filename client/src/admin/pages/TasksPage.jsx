@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalOverlay from '../../components/ModalOverlay';
 
@@ -195,7 +194,7 @@ export default function TasksPage() {
     name ? name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() : '?';
 
   return (
-    <AdminLayout active="tasks">
+    <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2>📋 Quản trị Nhiệm vụ Hệ thống</h2>
@@ -782,6 +781,6 @@ export default function TasksPage() {
           onClose={() => setConfirmModalConfig(null)}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

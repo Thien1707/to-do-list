@@ -381,32 +381,35 @@ export default function Sidebar({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.65rem',
+                gap: '0.4rem',
                 width: '100%',
-                padding: '0.65rem 0.85rem',
+                boxSizing: 'border-box',
+                padding: '0.45rem 0.5rem',
                 fontWeight: 600,
-                fontSize: '0.84rem',
-                borderRadius: 10,
+                fontSize: '0.75rem',
+                borderRadius: 8,
                 background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                 color: '#ffffff',
-                boxShadow: '0 3px 10px rgba(79, 70, 229, 0.3)',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
                 border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                overflow: 'hidden',
+                transition: 'all 0.15s ease',
               }}
               title="Chuyển sang Bảng điều khiển Quản trị viên (Admin)"
             >
-              <ShieldCheckIcon size={17} style={{ flexShrink: 0, color: '#e0e7ff' }} />
-              <span style={{ fontWeight: 600, letterSpacing: '0.2px' }}>Bảng Quản trị Admin</span>
+              <ShieldCheckIcon size={14} style={{ flexShrink: 0, color: '#e0e7ff' }} />
+              <span style={{ fontWeight: 600, letterSpacing: '0.1px', whiteSpace: 'nowrap' }}>Bảng Quản trị Admin</span>
               <span
                 style={{
-                  fontSize: '0.65rem',
+                  fontSize: '0.62rem',
                   background: 'rgba(255, 255, 255, 0.25)',
-                  padding: '2px 6px',
+                  padding: '1px 5px',
                   borderRadius: 4,
                   fontWeight: 700,
                   letterSpacing: '0.5px',
                   lineHeight: 1.2,
+                  flexShrink: 0,
                 }}
               >
                 ADMIN

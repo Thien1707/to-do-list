@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import toast from 'react-hot-toast';
 import AccountSettingsModal from './AccountSettingsModal';
@@ -23,9 +23,15 @@ const NAV = [
 export default function AdminLayout({ children, active }) {
   const { admin, logout, updateAdmin } = useAdminAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const activeKey =
+    active ||
+    NAV.find((n) => location.pathname === n.path || location.pathname.startsWith(n.path + '/'))?.key ||
+    'dashboard';
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -35,7 +41,7 @@ export default function AdminLayout({ children, active }) {
   };
 
   const initials = admin?.name
-    ? admin.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    ? admin.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : 'AD';
 
   return (
@@ -68,9 +74,9 @@ export default function AdminLayout({ children, active }) {
 
         <nav className="sidebar-nav">
           <div className="nav-section">Quản lý & Giám sát</div>
-          {NAV.map(item => {
+          {NAV.map((item) => {
             const NavIcon = item.icon;
-            const isActive = active === item.key;
+            const isActive = activeKey === item.key;
             return (
               <button
                 key={item.key}
@@ -96,32 +102,35 @@ export default function AdminLayout({ children, active }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.65rem',
+              gap: '0.4rem',
               width: '100%',
-              padding: '0.65rem 0.85rem',
+              boxSizing: 'border-box',
+              padding: '0.45rem 0.5rem',
               fontWeight: 600,
-              fontSize: '0.84rem',
-              borderRadius: 10,
+              fontSize: '0.75rem',
+              borderRadius: 8,
               background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
               color: '#ffffff',
-              boxShadow: '0 3px 10px rgba(37, 99, 235, 0.3)',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
               border: 'none',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              overflow: 'hidden',
+              transition: 'all 0.15s ease',
             }}
             title="Chuyển sang Bảng làm việc của Người dùng (User)"
           >
-            <UserIcon size={17} style={{ flexShrink: 0, color: '#e0f2fe' }} />
-            <span style={{ fontWeight: 600, letterSpacing: '0.2px' }}>Xem giao diện User</span>
+            <UserIcon size={14} style={{ flexShrink: 0, color: '#e0f2fe' }} />
+            <span style={{ fontWeight: 600, letterSpacing: '0.1px', whiteSpace: 'nowrap' }}>Xem giao diện User</span>
             <span
               style={{
-                fontSize: '0.65rem',
+                fontSize: '0.62rem',
                 background: 'rgba(255, 255, 255, 0.25)',
-                padding: '2px 6px',
+                padding: '1px 5px',
                 borderRadius: 4,
                 fontWeight: 700,
                 letterSpacing: '0.5px',
                 lineHeight: 1.2,
+                flexShrink: 0,
               }}
             >
               USER
@@ -146,9 +155,16 @@ export default function AdminLayout({ children, active }) {
             }}
             title="Nhấn để mở Cài đặt tài khoản Admin"
           >
-            <div className="user-avatar" style={{ width: 34, height: 34, flexShrink: 0 }}>
+            <div className="user-avatar" style={{ width: 34, height: 34, flexShrink: 0, overflow: 'hidden', borderRadius: '50%' }}>
               {admin?.avatar_url ? (
-                <img src={admin.avatar_url} alt="avatar" />
+                <img
+                  src={admin.avatar_url}
+                  alt={admin?.name || 'Admin'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
               ) : (
                 initials
               )}
@@ -202,7 +218,7 @@ export default function AdminLayout({ children, active }) {
             </button>
             <div className="header-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               {(() => {
-                const currentNav = NAV.find(n => n.key === active);
+                const currentNav = NAV.find((n) => n.key === activeKey);
                 if (!currentNav) return 'Bảng quản trị';
                 const IconComponent = currentNav.icon;
                 return (
@@ -214,32 +230,10 @@ export default function AdminLayout({ children, active }) {
               })()}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <button
-              onClick={() => setShowAccountModal(true)}
-              className="btn btn-sm btn-ghost"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.3rem 0.75rem',
-                borderRadius: 99,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                cursor: 'pointer',
-              }}
-              title="Nhấn để mở Cài đặt tài khoản Admin"
-            >
-              <div className="user-avatar" style={{ width: 22, height: 22, fontSize: '0.65rem' }}>
-                {admin?.avatar_url ? <img src={admin.avatar_url} alt="" /> : initials}
-              </div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{admin?.name?.split(' ')[0] || 'Admin'}</span>
-            </button>
-          </div>
         </header>
 
         <div className="page-container">
-          {children}
+          {children || <Outlet />}
         </div>
 
         {/* Admin Account Settings Modal */}

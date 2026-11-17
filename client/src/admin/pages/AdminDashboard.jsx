@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import AdminLayout from '../components/AdminLayout';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -16,12 +15,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <AdminLayout active="dashboard">
-        <div className="page-loader">
-          <div className="spinner" />
-          <p style={{ color: 'var(--text-secondary)' }}>Đang tổng hợp dữ liệu phân tích hệ thống...</p>
-        </div>
-      </AdminLayout>
+      <div className="page-loader" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '0.75rem' }}>
+        <div className="spinner" />
+        <p style={{ color: 'var(--text-secondary)' }}>Đang tổng hợp dữ liệu phân tích hệ thống...</p>
+      </div>
     );
   }
 
@@ -50,7 +47,7 @@ export default function AdminDashboard() {
   );
 
   return (
-    <AdminLayout active="dashboard">
+    <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2>📊 Bảng Phân Tích & Giám Sát Người Dùng</h2>
@@ -383,6 +380,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

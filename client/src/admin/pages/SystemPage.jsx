@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function SystemPage() {
@@ -122,7 +121,7 @@ export default function SystemPage() {
   };
 
   return (
-    <AdminLayout active="system">
+    <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2>⚙️ Giám sát Hệ thống & Dữ liệu</h2>
@@ -330,6 +329,6 @@ export default function SystemPage() {
           onClose={() => setConfirmModalConfig(null)}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

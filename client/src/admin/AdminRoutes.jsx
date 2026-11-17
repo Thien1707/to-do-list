@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAdminAuth } from './context/AdminAuthContext';
+import AdminLayout from './components/AdminLayout';
 
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -10,36 +11,82 @@ const SystemPage = lazy(() => import('./pages/SystemPage'));
 
 function PageFallback() {
   return (
-    <main className="page-loader" id="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', width: '100%' }}>
       <div className="spinner" />
-    </main>
+    </div>
   );
 }
 
 function ProtectedRoute({ children }) {
   const { admin } = useAdminAuth();
   if (!admin) return <Navigate to="/admin/login" replace />;
-  return children;
+  return children || <Outlet />;
 }
 
 function PublicRoute({ children }) {
   const { admin } = useAdminAuth();
   if (admin) return <Navigate to="/admin/dashboard" replace />;
-  return children;
+  return children || <Outlet />;
 }
 
 export default function AdminRoutes() {
   return (
-    <Suspense fallback={<PageFallback />}>
-      <Routes>
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="login" element={<PublicRoute><AdminLogin /></PublicRoute>} />
-        <Route path="dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-        <Route path="users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-        <Route path="tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-        <Route path="system" element={<ProtectedRoute><SystemPage /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-      </Routes>
-    </Suspense>
+    <Routes>
+      <Route
+        path="login"
+        element={
+          <PublicRoute>
+            <Suspense fallback={<PageFallback />}>
+              <AdminLogin />
+            </Suspense>
+          </PublicRoute>
+        }
+      />
+
+      {/* Persistent Shell Layout: Sidebar & Header stay permanently mounted without reloading */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route
+          path="dashboard"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <AdminDashboard />
+            </Suspense>
+          }
+        />
+        <Route
+          path="users"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <UsersPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="tasks"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <TasksPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="system"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <SystemPage />
+            </Suspense>
+          }
+        />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+    </Routes>
   );
 }
