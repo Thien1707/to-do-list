@@ -407,3 +407,80 @@ exports.cleanupTasks = async (req, res) => {
     return res.status(500).json({ success: false, message: "Đã có lỗi xảy ra trên hệ thống. Vui lòng thử lại sau." });
   }
 };
+
+// POST /api/admin/trigger-reminders (Chạy thủ công quét & gửi email nhắc việc)
+exports.triggerDueReminders = async (req, res) => {
+  try {
+    const { runDueTaskNotificationJob } = require('../services/scheduler');
+    const result = await runDueTaskNotificationJob();
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('❌ Lỗi khi trigger reminders:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/admin/test-email (Kiểm tra kết nối và gửi thử 1 email qua Gmail SMTP)
+exports.testEmail = async (req, res) => {
+  try {
+    const { getTransporter } = require('../services/emailService');
+    const targetEmail = req.body?.email || req.admin?.email;
+    const transporter = getTransporter();
+
+    if (!transporter) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa cấu hình EMAIL_USER hoặc EMAIL_PASS trong file .env trên server.',
+        help: 'Vào Google Account > Security > 2-Step Verification > App Passwords để tạo mật khẩu ứng dụng 16 ký tự và điền vào EMAIL_PASS.',
+      });
+    }
+
+    if (!targetEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp email nhận thư thử nghiệm (field: email).',
+      });
+    }
+
+    // Verify transporter connection
+    await transporter.verify();
+
+    // Send a test mail
+    const info = await transporter.sendMail({
+      from: `"TaskFlow Notification" <${process.env.EMAIL_USER}>`,
+      to: targetEmail,
+      subject: '[TaskFlow] Kiểm tra cấu hình Email thành công ✅',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <h2 style="color: #4f46e5; margin-top: 0;">🎉 Kết nối Email TaskFlow thành công!</h2>
+          <p>Xin chào, email này xác nhận rằng hệ thống gửi mail SMTP của TaskFlow đã được cấu hình chính xác.</p>
+          <div style="background: #f8fafc; border-left: 4px solid #4f46e5; padding: 12px 16px; margin: 16px 0;">
+            <p style="margin: 4px 0;"><strong>Thời gian gửi:</strong> ${new Date().toLocaleString('vi-VN')}</p>
+            <p style="margin: 4px 0;"><strong>Tài khoản gửi:</strong> ${process.env.EMAIL_USER}</p>
+            <p style="margin: 4px 0;"><strong>Tài khoản nhận:</strong> ${targetEmail}</p>
+          </div>
+          <p>Từ giờ, tính năng <strong>nhắc nhở nhiệm vụ sắp hết hạn (trước 2 ngày lúc 08:00 hàng ngày)</strong> và <strong>quên mật khẩu</strong> sẽ hoạt động ổn định và tự động gửi thư cho bạn.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">TaskFlow Notifications &bull; Automated System</p>
+        </div>
+      `,
+    });
+
+    return res.json({
+      success: true,
+      message: `Đã gửi email thử nghiệm thành công tới ${targetEmail}`,
+      messageId: info.messageId,
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi gửi email test:', err.message);
+    let advice = 'Kiểm tra lại EMAIL_USER và EMAIL_PASS.';
+    if (err.message.includes('Invalid login') || err.message.includes('Username and Password not accepted')) {
+      advice = 'Google từ chối đăng nhập. Bạn cần bật xác thực 2 bước (2FA) trên tài khoản Google và tạo Mật khẩu ứng dụng (App Password 16 ký tự) tại myaccount.google.com/apppasswords.';
+    }
+    return res.status(500).json({
+      success: false,
+      message: `Lỗi kết nối Gmail SMTP: ${err.message}`,
+      advice,
+    });
+  }
+};
