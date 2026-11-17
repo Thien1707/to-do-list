@@ -170,7 +170,6 @@ export default function Register() {
                 autoComplete="name"
                 value={form.name}
                 onChange={e => handleChange('name', e.target.value)}
-                autoFocus
               />
             </div>
             {errors.name && (

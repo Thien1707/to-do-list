@@ -66,7 +66,6 @@ export default function ForgotPassword() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                autoFocus
               />
             </div>
             <button type="submit" className="btn btn-primary btn-full" disabled={loading}>

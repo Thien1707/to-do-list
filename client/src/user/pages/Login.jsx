@@ -151,7 +151,6 @@ export default function Login() {
                 autoComplete="email"
                 value={form.email}
                 onChange={e => handleChange('email', e.target.value)}
-                autoFocus
               />
             </div>
             {errors.email && (
