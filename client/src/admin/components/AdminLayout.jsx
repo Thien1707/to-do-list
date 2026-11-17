@@ -197,6 +197,14 @@ export default function AdminLayout({ children, active }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <button
+              onClick={() => navigate('/dashboard')}
+              className="btn btn-sm btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', borderRadius: 8 }}
+              title="Chuyển sang Bảng làm việc của Người dùng"
+            >
+              <span>👤 Xem giao diện User</span>
+            </button>
+            <button
               onClick={() => setShowAccountModal(true)}
               className="btn btn-sm btn-ghost"
               style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.3rem 0.65rem', borderRadius: 99, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}

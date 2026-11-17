@@ -6,7 +6,17 @@ const AdminAuthContext = createContext(null);
 export const AdminAuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(() => {
     try {
-      const u = JSON.parse(localStorage.getItem('adminUser'));
+      let u = JSON.parse(localStorage.getItem('adminUser'));
+      if (!u) {
+        // Tự động nhận diện phiên đăng nhập từ tài khoản có role admin
+        const normalUser = JSON.parse(localStorage.getItem('user'));
+        const normalToken = localStorage.getItem('accessToken');
+        if (normalUser && normalUser.role === 'admin' && normalToken) {
+          localStorage.setItem('adminUser', JSON.stringify(normalUser));
+          localStorage.setItem('adminToken', normalToken);
+          u = normalUser;
+        }
+      }
       if (u && u.role !== 'admin') {
         localStorage.removeItem('adminUser');
         localStorage.removeItem('adminToken');

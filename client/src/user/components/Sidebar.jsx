@@ -363,6 +363,54 @@ export default function Sidebar({
           )}
         </nav>
 
+        {/* Admin Gateway Button if user has role admin */}
+        {displayUser?.role === 'admin' && (
+          <div style={{ padding: '0 0.75rem', marginBottom: '0.65rem' }}>
+            <button
+              onClick={() => {
+                const token = localStorage.getItem('accessToken');
+                if (token) {
+                  localStorage.setItem('adminToken', token);
+                  localStorage.setItem('adminUser', JSON.stringify(displayUser));
+                }
+                navigate('/admin/dashboard');
+              }}
+              className="btn btn-primary btn-sm btn-full"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.55rem 0.75rem',
+                fontWeight: 600,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              title="Chuyển sang Bảng điều khiển Quản trị viên (Admin)"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>🛡️</span>
+                <span>Bảng Quản trị Admin</span>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                }}
+              >
+                ADMIN
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* User Card & Settings */}
         <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)' }}>
           <div

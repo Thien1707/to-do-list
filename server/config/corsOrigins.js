@@ -35,8 +35,18 @@ function isVercelOrigin(origin) {
   }
 }
 
+function isLocalhostOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
 function isOriginAllowed(origin) {
   if (!origin) return true;
+  if (isLocalhostOrigin(origin)) return true;
   const allowed = collectStaticOrigins();
   if (allowed.includes(origin)) return true;
   if (isVercelOrigin(origin)) return true;

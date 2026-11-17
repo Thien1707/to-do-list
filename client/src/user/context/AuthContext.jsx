@@ -35,6 +35,10 @@ export const AuthProvider = ({ children }) => {
     });
     localStorage.setItem('accessToken', data.data.accessToken);
     localStorage.setItem('user', JSON.stringify(data.data.user));
+    if (data.data.user?.role === 'admin') {
+      localStorage.setItem('adminToken', data.data.accessToken);
+      localStorage.setItem('adminUser', JSON.stringify(data.data.user));
+    }
     setUser(data.data.user);
     return data;
   }, []);
@@ -104,6 +108,10 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post('/auth/login', { email, password });
     localStorage.setItem('accessToken', data.data.accessToken);
     localStorage.setItem('user', JSON.stringify(data.data.user));
+    if (data.data.user?.role === 'admin') {
+      localStorage.setItem('adminToken', data.data.accessToken);
+      localStorage.setItem('adminUser', JSON.stringify(data.data.user));
+    }
     setUser(data.data.user);
     return data;
   };
