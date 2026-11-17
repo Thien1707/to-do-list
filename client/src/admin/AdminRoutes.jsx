@@ -10,9 +10,9 @@ const SystemPage = lazy(() => import('./pages/SystemPage'));
 
 function PageFallback() {
   return (
-    <div className="page-loader" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+    <main className="page-loader" id="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
       <div className="spinner" />
-    </div>
+    </main>
   );
 }
 
