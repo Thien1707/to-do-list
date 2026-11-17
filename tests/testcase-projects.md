@@ -1,56 +1,33 @@
 # BỘ KỊCH BẢN KIỂM THỬ: DỰ ÁN NHÓM & SPRINTS (PROJECTS & SCRUM/KANBAN)
 
-- **Dự án:** Quản lý Nhiệm vụ Cá nhân & Nhóm (Personal Task Manager / To-Do List)
+- **Dự án:** Quản lý Nhiệm vụ Cá nhân & Nhóm (TaskFlow / To-Do List)
 - **Mã phân hệ:** MOD-PROJECT
-- **Người thực hiện:** Nguyễn Hoàng Minh Nhật (MSSV: 2374802010363)
-- **Vai trò:** Kiểm thử & Báo cáo (Test & Documenter)
+- **Tester thực hiện:** Nguyễn Hoàng Minh Nhật (MSSV: 2374802010363)
+- **Môi trường:** Node.js v22 + Express 5 & React 19
 
 ---
 
-## 1. Ma trận chức năng kiểm thử (Test Matrix)
+## 📅 Lịch sử bổ sung chức năng kiểm thử (Changelog)
 
-| STT | Mã Chức Năng | Tên Chức Năng | API Endpoint | Giao diện tương ứng |
-| :---: | :---: | :--- | :--- | :--- |
-| 1 | **PRJ-01** | Tạo dự án làm việc nhóm | `POST /api/projects` | `/projects` - Modal Tạo dự án |
-| 2 | **PRJ-02** | Xem danh sách dự án tham gia | `GET /api/projects` | `/projects` - Grid thẻ dự án |
-| 3 | **PRJ-03** | Tra cứu & Mời thành viên vào dự án | `GET /lookup-user`, `POST /members` | `/projects/:id` - Tab Thành viên |
-| 4 | **PRJ-04** | Phân quyền thành viên (Admin/Member/Viewer) | `PUT /members/:userId` | Dropdown đổi vai trò thành viên |
-| 5 | **PRJ-05** | Xóa / Rời khỏi dự án | `DELETE /members/:userId`, `DELETE /projects/:id` | Nút Rời nhóm / Xóa dự án |
-| 6 | **SPR-01** | Tạo Sprint quản lý tiến độ | `POST /api/projects/:id/sprints` | Modal Thêm Sprint mới |
-| 7 | **SPR-02** | Theo dõi biểu đồ Burndown Chart | `GET /api/projects/:id/sprints` | BurndownChart component |
-| 8 | **KAN-01** | Bảng công việc Kanban theo Sprint | `GET /api/projects/:id/tasks` | Cột trạng thái: To-Do, In Progress, Done |
+| Phiên bản | Ngày thêm (Date Added) | Chức năng kiểm thử | Số ca test | Đánh giá |
+| :---: | :---: | :--- | :---: | :---: |
+| **v1.0** | 10/11/2026 | Khung ý tưởng kiểm thử dự án | 5 ca | Bản thảo ban đầu |
+| **v1.1** | 17/11/2026 | Kiểm thử thực tế API & UI: Tạo dự án, Chi tiết dự án, Quản lý thành viên, Tạo Sprint Scrum, Chặn quyền Viewer | 8 ca | 100% PASS |
+| *[Sau này]* | *[Ngày add]* | *Ví dụ: Rời khỏi dự án, Chuyển quyền Chủ sở hữu (Owner transfer)...* | *...* | *...* |
 
 ---
 
-## 2. Chi tiết các Test Cases
+## 📋 Chi tiết các Test Cases
 
-### 2.1. Quản lý Dự án (Project Management)
+*(Ghi chú: Khi bổ sung chức năng mới sau này, Tester chỉ cần chèn thêm dòng mới vào bảng và điền cột **Ngày thêm** tương ứng).*
 
-| Test Case ID | Tên Kịch Bản | Tiền Điều Kiện | Các Bước Thực Hiện | Dữ Liệu Đầu Vào | Kết Quả Mong Đợi | HTTP Status | Đánh Giá |
-| :--- | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
-| **TC_PRJ_01** | Tạo dự án mới thành công | Đã đăng nhập tài khoản | 1. Vào trang `/projects`<br>2. Bấm "Tạo dự án mới"<br>3. Điền tên dự án và mô tả<br>4. Bấm "Tạo" | `name`: "Dự án Phát triển Web To-Do"<br>`description`: "Đồ án chuyên ngành CNPM"<br>`color`: "#6366f1" | Tạo dự án thành công, người tạo tự động được gán vai trò `owner` (chủ sở hữu) | `201 Created` | **PASS** |
-| **TC_PRJ_02** | Tạo dự án thất bại do thiếu tên dự án | Đã đăng nhập | 1. Để trống tên dự án<br>2. Bấm "Tạo" | `name`: ""<br>`description`: "Mô tả..." | Báo lỗi: "Tên dự án không được để trống", ngăn chặn gửi form | `400 Bad Request` | **PASS** |
-| **TC_PRJ_03** | Xem chi tiết dự án | User là thành viên của dự án | 1. Bấm vào thẻ dự án từ danh sách | Click thẻ dự án | Hiển thị bảng Kanban, danh sách thành viên, các sprint và nhật ký hoạt động gần đây | `200 OK` | **PASS** |
-| **TC_PRJ_04** | Truy cập dự án của người khác khi không được mời | User không phải là thành viên | User B nhập trực tiếp URL `/projects/1` của User A | Token User B truy cập ID dự án của User A | Hệ thống bảo mật chặn truy cập: Báo lỗi "Bạn không có quyền truy cập dự án này" | `403 Forbidden` | **PASS** |
-
----
-
-### 2.2. Quản lý Thành viên & Phân quyền (Members & RBAC)
-
-| Test Case ID | Tên Kịch Bản | Tiền Điều Kiện | Các Bước Thực Hiện | Dữ Liệu Đầu Vào | Kết Quả Mong Đợi | HTTP Status | Đánh Giá |
-| :--- | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
-| **TC_MEM_01** | Tra cứu người dùng theo email trước khi mời | Người dùng cần mời đã có tài khoản | 1. Vào tab "Thành viên"<br>2. Gõ email người dùng vào ô tìm kiếm | `email`: "vana@example.com" | Hiển thị thông tin người dùng tìm thấy (Avatar, Họ tên, Email) | `200 OK` | **PASS** |
-| **TC_MEM_02** | Thêm thành viên vào dự án với quyền Member | User là `owner` hoặc `admin` của dự án | 1. Chọn người dùng từ kết quả tra cứu<br>2. Chọn vai trò "Thành viên (Member)"<br>3. Bấm "Thêm thành viên" | `email`: "vana@example.com"<br>`role`: "member" | Người dùng được thêm vào bảng thành viên, có quyền tạo và chỉnh sửa task trong dự án | `201 Created` | **PASS** |
-| **TC_MEM_03** | Thêm thành viên thất bại do người này đã ở trong dự án | Người dùng đã là thành viên | 1. Nhập lại email của thành viên hiện tại<br>2. Bấm "Thêm" | Email thành viên đã có trong dự án | Báo lỗi: "Người dùng này đã là thành viên của dự án" | `400 Bad Request` | **PASS** |
-| **TC_MEM_04** | Thay đổi vai trò thành viên (Role update) | User là `owner` dự án | 1. Bấm dropdown vai trò cạnh thành viên<br>2. Đổi từ `member` sang `admin` | `role`: "admin" | Cập nhật quyền thành công, ghi nhận hoạt động vào Activity Log | `200 OK` | **PASS** |
-| **TC_MEM_05** | Thành viên có quyền `viewer` cố tình xóa task | User có role `viewer` (Chỉ xem) | Gửi request `DELETE /api/tasks/:id` | Token của viewer | Hệ thống từ chối thao tác: "Bạn chỉ có quyền xem, không được chỉnh sửa dữ liệu" | `403 Forbidden` | **PASS** |
-
----
-
-### 2.3. Quản lý Sprint & Burndown Chart (Scrum)
-
-| Test Case ID | Tên Kịch Bản | Tiền Điều Kiện | Các Bước Thực Hiện | Dữ Liệu Đầu Vào | Kết Quả Mong Đợi | HTTP Status | Đánh Giá |
-| :--- | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
-| **TC_SPR_01** | Tạo Sprint mới thành công | Đã mở trang chi tiết dự án | 1. Bấm nút "Tạo Sprint mới"<br>2. Nhập tên Sprint, mục tiêu, ngày bắt đầu, ngày kết thúc<br>3. Bấm "Tạo Sprint" | `name`: "Sprint 1 - Dựng khung MVP"<br>`start_date`: "2026-11-10"<br>`end_date`: "2026-11-17"<br>`goal`: "Hoàn thiện API CRUD" | Sprint được tạo thành công, xuất hiện trên thanh chọn Sprint và bảng Burndown Chart | `201 Created` | **PASS** |
-| **TC_SPR_02** | Gán nhiệm vụ vào Sprint | Có task và sprint đã tạo | 1. Mở modal chỉnh sửa task<br>2. Chọn Sprint 1 từ dropdown<br>3. Bấm lưu | `sprint_id`: 1 | Nhiệm vụ được liên kết với Sprint 1, hiển thị trong danh sách công việc của Sprint | `200 OK` | **PASS** |
-| **TC_SPR_03** | Kiểm tra đường tiến độ thực tế trên Burndown Chart | Sprint có 5 tasks, hoàn thành 2 tasks | 1. Chuyển 2 task sang trạng thái "Done"<br>2. Quan sát biểu đồ Burndown | 2 tasks `status = 'completed'` | Đường Ideal Line giảm đều theo thời gian, đường Actual Line hạ xuống tương ứng với số task đã xong | Visual & Data Check | **PASS** |
+| Test Case ID | Ngày thêm | Tên Kịch Bản | Dữ Liệu Đầu Vào | Kết Quả Mong Đợi | Kết Quả Thực Tế (Actual) | Trạng Thái | Ngày Test |
+| :--- | :---: | :--- | :--- | :--- | :--- | :---: | :---: |
+| **TC_PRJ_01** | 17/11/2026 | Tạo dự án nhóm thành công | `name`: "Dự án HK261", `color`: "#6366f1" | `201 Created`, tự động gán role `owner` | `201 Created`, dự án xuất hiện trong danh sách | **PASS** | 17/11/2026 |
+| **TC_PRJ_02** | 17/11/2026 | Tạo dự án để trống tên | `name`: "", `description`: "Mô tả" | Báo lỗi `400 Bad Request`: "Tên project là bắt buộc" | Trả về `400 Bad Request`, không tạo dự án | **PASS** | 17/11/2026 |
+| **TC_PRJ_03** | 17/11/2026 | Xem chi tiết thông tin dự án | ID dự án hợp lệ của user | `200 OK`, trả về thông tin project & members | `200 OK`, hiển thị Kanban và danh sách thành viên | **PASS** | 17/11/2026 |
+| **TC_PRJ_04** | 17/11/2026 | Chặn người lạ truy cập dự án | User không phải thành viên truy cập | Từ chối truy cập: `403 Forbidden` | `403 Forbidden`, bảo mật dữ liệu nhóm | **PASS** | 17/11/2026 |
+| **TC_MEM_01** | 17/11/2026 | Tra cứu user trước khi mời | `email`: "test@vanlanguni.vn" | `200 OK`, trả về avatar, họ tên user | `200 OK`, tìm thấy đúng user | **PASS** | 17/11/2026 |
+| **TC_MEM_02** | 17/11/2026 | Thêm thành viên vào dự án | `email`: "member@test.com", `role`: "member" | `201 Created`, người dùng trở thành member | `201 Created`, thành viên mới có quyền tạo task | **PASS** | 17/11/2026 |
+| **TC_SPR_01** | 17/11/2026 | Tạo Sprint mới trong dự án | `name`: "Sprint 1", `start_date`, `end_date` | `201 Created`, sprint xuất hiện trên timeline | `201 Created`, sprint sẵn sàng cho Burndown | **PASS** | 17/11/2026 |
+| **TC_SPR_02** | 17/11/2026 | Lấy danh sách Sprints của dự án | `GET /api/projects/:id/sprints` | `200 OK`, trả về mảng các sprints | `200 OK`, hiển thị đầy đủ các sprint | **PASS** | 17/11/2026 |
