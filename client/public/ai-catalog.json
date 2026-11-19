@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agenticresourcediscovery.org/schemas/v1/ai-catalog.json",
+  "name": "TaskFlow",
+  "description": "Nền tảng quản lý công việc và dự án thông minh với bảng Kanban, burndown chart và xác thực đa kênh",
+  "url": "https://to-do-list-khaki-alpha-95.vercel.app",
+  "contact": {
+    "name": "TaskFlow Support",
+    "email": "cbfrose123is@gmail.com"
+  },
+  "capabilities": [
+    {
+      "name": "Task Management",
+      "description": "Quản lý công việc cá nhân và phân nhóm nhiệm vụ theo bảng Kanban"
+    },
+    {
+      "name": "Project Collaboration",
+      "description": "Quản lý dự án nhóm, thành viên, và biểu đồ tiến độ burndown"
+    }
+  ]
+}

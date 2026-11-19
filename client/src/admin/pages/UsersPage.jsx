@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -84,6 +84,10 @@ export default function UsersPage() {
       toast.error('Mật khẩu mới phải có tối thiểu 6 ký tự');
       return;
     }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      toast.error('Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (VD: !@#$%^&*)');
+      return;
+    }
 
     setResetting(true);
     try {
@@ -151,7 +155,7 @@ export default function UsersPage() {
     name ? name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() : '?';
 
   return (
-    <AdminLayout active="users">
+    <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2>👥 Quản lý Người dùng</h2>
@@ -359,9 +363,8 @@ export default function UsersPage() {
 
       {/* Reset Password Modal */}
       {resetModalUser && (
-        <div
-          className="modal-overlay"
-          onClick={e => e.target === e.currentTarget && setResetModalUser(null)}
+        <ModalOverlay
+          onClose={() => setResetModalUser(null)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -385,11 +388,11 @@ export default function UsersPage() {
 
             <form onSubmit={handleResetPassword}>
               <div className="form-group">
-                <label className="form-label">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                <label className="form-label">Mật khẩu mới (gồm chữ cái, số & ký tự đặc biệt) *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Nhập mật khẩu mới..."
+                  placeholder="VD: MatKhau@2026"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   required
@@ -407,7 +410,7 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* In-app Confirmation Modal */}
@@ -424,6 +427,6 @@ export default function UsersPage() {
           onClose={() => setConfirmModalConfig(null)}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

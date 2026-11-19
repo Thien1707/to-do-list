@@ -1,7 +1,33 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
+import {
+  EyeIcon,
+  EyeOffIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  LockIcon,
+  PaletteIcon,
+  BarChartIcon,
+  CameraIcon,
+  SparklesIcon,
+  TrashIcon,
+  SaveIcon,
+  CheckIcon,
+  SunIcon,
+  MoonIcon,
+  LaptopIcon,
+  MailIcon,
+  BellIcon,
+  ClipboardListIcon,
+  CheckCircleIcon,
+  FolderKanbanIcon,
+  AlertCircleIcon,
+  XIcon,
+} from '../../components/Icons';
 
 const PRESET_AVATARS = [
   { id: 'admin-1', label: 'Shield Boss', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminBoss' },
@@ -24,7 +50,6 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
 
   // Profile Form State
   const [name, setName] = useState(admin?.name || '');
-  const [phone, setPhone] = useState(admin?.phone || '');
   const [jobTitle, setJobTitle] = useState(admin?.job_title || '');
   const [department, setDepartment] = useState(admin?.department || '');
   const [bio, setBio] = useState(admin?.bio || '');
@@ -33,6 +58,7 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
   // Avatar Upload State
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarError, setAvatarError] = useState('');
   const [showPresets, setShowPresets] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -67,7 +93,6 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
           const fresh = data.data.user;
           setAdminData(fresh);
           setName(fresh.name || '');
-          setPhone(fresh.phone || '');
           setJobTitle(fresh.job_title || '');
           setDepartment(fresh.department || '');
           setBio(fresh.bio || '');
@@ -105,12 +130,27 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setAvatarError('');
+
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn một file ảnh hợp lệ (PNG, JPG, WEBP, GIF)');
+      const msg = 'Không thể tải ảnh lên: Vui lòng chọn tệp ảnh hợp lệ (JPG, PNG, WEBP, GIF).';
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh tối đa là 5MB');
+
+    const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_AVATAR_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const msg = `Không thể tải ảnh lên: Tệp "${file.name}" (${sizeMB} MB) vượt quá giới hạn tối đa 5MB.`;
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
 
@@ -123,6 +163,7 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
   const handleUploadAvatar = async () => {
     if (!selectedFile) return;
     setLoading(true);
+    setAvatarError('');
     try {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
@@ -136,10 +177,13 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
         setAvatarUrl(data.data.avatar_url);
         setSelectedFile(null);
         setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         if (onUpdateAdmin) onUpdateAdmin(data.data.user);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Tải ảnh đại diện thất bại');
+      const msg = err.response?.data?.message || 'Không thể tải ảnh đại diện lên';
+      setAvatarError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -193,13 +237,8 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
   const handleCancelSelectedFile = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
+    setAvatarError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // Vietnam Phone Format Validation Algorithm
-  const isPhoneValid = (p) => {
-    if (!p || !p.trim()) return true;
-    return /^(0|\+84)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/.test(p.trim().replace(/\s+/g, ''));
   };
 
   // Save Profile Info (Automatically uploads selected avatar file if present)
@@ -207,11 +246,6 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Họ và tên không được để trống');
-      return;
-    }
-
-    if (phone && !isPhoneValid(phone)) {
-      toast.error('Số điện thoại không đúng định dạng Việt Nam (10 chữ số)');
       return;
     }
 
@@ -236,7 +270,6 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
 
       const payload = {
         name: name.trim(),
-        phone: phone ? phone.trim().replace(/\s+/g, '') : null,
         job_title: jobTitle.trim(),
         department: department.trim(),
         bio: bio.trim(),
@@ -263,20 +296,21 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
         score: 0,
         label: 'Chưa nhập',
         color: 'var(--text-muted)',
-        criteria: { length: false, case: false, number: false, special: false },
+        criteria: { length: false, letter: false, number: false, special: false },
+        isValid: false,
       };
     }
     const criteria = {
-      length: pwd.length >= 8,
-      case: /[A-Z]/.test(pwd) && /[a-z]/.test(pwd),
+      length: pwd.length >= 6,
+      letter: /[a-zA-Z]/.test(pwd),
       number: /[0-9]/.test(pwd),
-      special: /[^A-Za-z0-9]/.test(pwd),
+      special: /[^a-zA-Z0-9]/.test(pwd),
     };
-    const validCount = Object.values(criteria).filter(Boolean).length;
-    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria };
-    if (validCount <= 1) return { score: 1, label: 'Yếu', color: '#ef4444', criteria };
-    if (validCount <= 3) return { score: 2, label: 'Trung bình', color: '#f59e0b', criteria };
-    return { score: 3, label: 'Rất mạnh (Khuyên dùng)', color: '#10b981', criteria };
+    const isValid = criteria.length && criteria.letter && criteria.number && criteria.special;
+
+    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria, isValid: false };
+    if (!isValid) return { score: 2, label: 'Chưa đủ chuẩn (cần cả chữ, số & ký tự đặc biệt)', color: '#f59e0b', criteria, isValid: false };
+    return { score: 3, label: 'Hợp lệ & Rất mạnh', color: '#10b981', criteria, isValid: true };
   };
 
   const pwDetails = getPasswordDetails(newPassword);
@@ -290,6 +324,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
     }
     if (!newPassword || newPassword.length < 6) {
       toast.error('Mật khẩu mới phải có tối thiểu 6 ký tự');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      toast.error('Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (VD: !@#$%^&*)');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -356,8 +394,8 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
   const adminInitials = (name || admin?.name || admin?.email || 'A').charAt(0).toUpperCase();
   const currentAvatarDisplay = previewUrl || avatarUrl;
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 999 }}>
+  return createPortal(
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
       <div
         className="modal animate-fadein"
         style={{
@@ -396,11 +434,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                fontSize: '1.2rem',
                 boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)',
               }}
             >
-              🛡️
+              <ShieldCheckIcon size={22} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -437,34 +474,40 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
             }}
           >
             {[
-              { id: 'profile', icon: '👤', label: 'Hồ sơ Quản trị' },
-              { id: 'security', icon: '🔒', label: 'Mật khẩu & Bảo mật' },
-              { id: 'appearance', icon: '🎨', label: 'Giao diện & Tùy chọn' },
-              { id: 'stats', icon: '📊', label: 'Tổng quan Hệ thống' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: 8,
-                  fontSize: '0.86rem',
-                  fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  background: activeTab === tab.id ? 'var(--primary-light)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: '1.05rem' }}>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+              { id: 'profile', icon: UserIcon, label: 'Hồ sơ Quản trị' },
+              { id: 'security', icon: LockIcon, label: 'Mật khẩu & Bảo mật' },
+              { id: 'appearance', icon: PaletteIcon, label: 'Giao diện & Tùy chọn' },
+              { id: 'stats', icon: BarChartIcon, label: 'Tổng quan Hệ thống' },
+            ].map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 8,
+                    fontSize: '0.86rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--primary-light)' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TabIcon size={17} />
+                  </span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
 
             {/* Quick Admin Badge in Nav */}
             <div
@@ -567,11 +610,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '0.75rem',
                         boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
                       }}
                     >
-                      🛡️
+                      <ShieldCheckIcon size={14} />
                     </span>
                   </div>
 
@@ -589,29 +631,68 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn btn-secondary btn-sm"
                         onClick={() => fileInputRef.current?.click()}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        📷 Tải ảnh từ máy
+                        <CameraIcon size={14} />
+                        <span>Tải ảnh từ máy</span>
                       </button>
 
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
                         onClick={() => setShowPresets(!showPresets)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        🎭 Chọn avatar mẫu
+                        <SparklesIcon size={14} />
+                        <span>Chọn avatar mẫu</span>
                       </button>
 
                       {(avatarUrl || previewUrl) && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--danger)' }}
+                          style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                           onClick={handleDeleteAvatar}
                         >
-                          🗑️ Xóa ảnh
+                          <TrashIcon size={14} />
+                          <span>Xóa ảnh</span>
                         </button>
                       )}
                     </div>
+
+                    {avatarError && (
+                      <div
+                        role="alert"
+                        style={{
+                          marginTop: '0.65rem',
+                          padding: '0.55rem 0.75rem',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          borderRadius: 8,
+                          color: 'var(--danger)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <AlertCircleIcon size={16} style={{ flexShrink: 0 }} />
+                          <span>{avatarError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAvatarError('')}
+                          className="btn-icon"
+                          style={{ width: 20, height: 20, color: 'var(--danger)', flexShrink: 0 }}
+                          title="Đóng thông báo"
+                        >
+                          <XIcon size={13} />
+                        </button>
+                      </div>
+                    )}
 
                     {selectedFile && (
                       <div
@@ -731,59 +812,36 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Email Quản trị viên</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="email"
-                          className="form-input"
-                          value={admin?.email || ''}
-                          disabled
-                          style={{ opacity: 0.7, cursor: 'not-allowed', paddingRight: '5.5rem' }}
-                        />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <label className="form-label" style={{ margin: 0 }}>Email Quản trị viên</label>
                         <span
                           style={{
-                            position: 'absolute',
-                            right: 8,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
                             fontSize: '0.68rem',
                             fontWeight: 600,
                             color: 'var(--primary)',
                             background: 'var(--primary-light)',
                             padding: '0.15rem 0.45rem',
                             borderRadius: 4,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
                           }}
                         >
-                          🛡️ Toàn quyền
+                          <ShieldCheckIcon size={12} />
+                          <span>Toàn quyền</span>
                         </span>
                       </div>
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={admin?.email || ''}
+                        disabled
+                        style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                      />
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label className="form-label" style={{ margin: 0 }}>Số điện thoại liên hệ</label>
-                        {phone && !isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>
-                            ⚠️ Cần 10 chữ số (VD: 0912 345 678)
-                          </span>
-                        )}
-                        {phone && isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
-                            ✓ Hợp lệ
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="tel"
-                        className={`form-input ${phone && !isPhoneValid(phone) ? 'input-error' : ''}`}
-                        placeholder="VD: 0912 345 678"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                      />
-                    </div>
-
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Chức danh / Trách nhiệm</label>
                       <input
@@ -794,17 +852,17 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         onChange={e => setJobTitle(e.target.value)}
                       />
                     </div>
-                  </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Phòng ban / Đơn vị quản lý</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="VD: Ban Quản trị Hệ thống & Công nghệ..."
-                      value={department}
-                      onChange={e => setDepartment(e.target.value)}
-                    />
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Phòng ban / Đơn vị quản lý</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="VD: Ban Quản trị Hệ thống & Công nghệ..."
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -825,8 +883,14 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? 'Đang lưu...' : '💾 Lưu thông tin'}
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={loading}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                    >
+                      <SaveIcon size={16} />
+                      <span>{loading ? 'Đang lưu...' : 'Lưu thông tin'}</span>
                     </button>
                   </div>
                 </form>
@@ -864,10 +928,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           type="button"
                           className="btn-icon"
                           onClick={() => setShowCurrentPw(!showCurrentPw)}
-                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                           title={showCurrentPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                         >
-                          {showCurrentPw ? '👁️' : '🙈'}
+                          {showCurrentPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                         </button>
                       </div>
                     </div>
@@ -889,10 +953,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowNewPw(!showNewPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showNewPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showNewPw ? '👁️' : '🙈'}
+                        {showNewPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -919,17 +983,21 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           <div style={{ flex: 1, background: pwDetails.score >= 3 ? pwDetails.color : 'var(--border)', transition: 'background 0.2s' }} />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.35rem', fontSize: '0.72rem' }}>
-                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.length ? '✓' : '○'}</span> Tối thiểu 8 ký tự
+                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.length ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Tối thiểu 6 ký tự</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.case ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.case ? '✓' : '○'}</span> Chữ hoa & chữ thường
+                          <div style={{ color: pwDetails.criteria.letter ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.letter ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ cái (A-Z, a-z)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.number ? '✓' : '○'}</span> Ít nhất 1 số (0-9)
+                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.number ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ số (0-9)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.special ? '✓' : '○'}</span> Ký tự đặc biệt (!@#$)
+                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.special ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Ký tự đặc biệt (!@#$...)</span>
                           </div>
                         </div>
                       </div>
@@ -952,10 +1020,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowConfirmPw(!showConfirmPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showConfirmPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showConfirmPw ? '👁️' : '🙈'}
+                        {showConfirmPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -980,9 +1048,11 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={loading || (confirmPassword && newPassword !== confirmPassword)}
+                      disabled={loading || (confirmPassword && newPassword !== confirmPassword) || !pwDetails.isValid}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
                     >
-                      {loading ? 'Đang cập nhật...' : '🔐 Cập nhật mật khẩu Admin'}
+                      <LockIcon size={16} />
+                      <span>{loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu Admin'}</span>
                     </button>
                   </div>
                 </form>
@@ -1048,34 +1118,40 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                   <label className="form-label" style={{ marginBottom: '0.75rem' }}>Chủ đề giao diện Bảng quản trị</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     {[
-                      { id: 'light', icon: '☀️', label: 'Chế độ Sáng', desc: 'Sáng sủa, rõ ràng các chỉ số' },
-                      { id: 'dark', icon: '🌙', label: 'Chế độ Tối', desc: 'Dịu mắt, phong cách hiện đại' },
-                      { id: 'system', icon: '💻', label: 'Theo hệ thống', desc: 'Tự động theo giao diện máy' },
-                    ].map(t => (
-                      <div
-                        key={t.id}
-                        onClick={() => handleThemeChange(t.id)}
-                        style={{
-                          border: theme === t.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                          borderRadius: 12,
-                          padding: '1rem',
-                          background: theme === t.id ? 'var(--primary-light)' : 'var(--bg-elevated)',
-                          cursor: 'pointer',
-                          transition: 'all 0.18s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ fontSize: '1.6rem' }}>{t.icon}</span>
-                        <div style={{ fontWeight: 600, fontSize: '0.86rem', color: theme === t.id ? 'var(--primary)' : 'var(--text-primary)' }}>
-                          {t.label}
+                      { id: 'light', icon: SunIcon, label: 'Chế độ Sáng', desc: 'Sáng sủa, rõ ràng các chỉ số' },
+                      { id: 'dark', icon: MoonIcon, label: 'Chế độ Tối', desc: 'Dịu mắt, phong cách hiện đại' },
+                      { id: 'system', icon: LaptopIcon, label: 'Theo hệ thống', desc: 'Tự động theo giao diện máy' },
+                    ].map(t => {
+                      const ThemeIcon = t.icon;
+                      const isSelected = theme === t.id;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => handleThemeChange(t.id)}
+                          style={{
+                            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                            borderRadius: 12,
+                            padding: '1rem',
+                            background: isSelected ? 'var(--primary-light)' : 'var(--bg-elevated)',
+                            cursor: 'pointer',
+                            transition: 'all 0.18s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <div style={{ color: isSelected ? 'var(--primary)' : 'var(--text-muted)', marginBottom: 2 }}>
+                            <ThemeIcon size={24} />
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: '0.86rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                            {t.label}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {t.desc}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {t.desc}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1086,78 +1162,83 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                     {[
                       {
                         key: 'email_reminders',
-                        icon: '📬',
+                        icon: MailIcon,
                         title: 'Thông báo báo cáo hệ thống định kỳ',
                         desc: 'Gửi báo cáo tổng hợp tiến độ toàn hệ thống vào đầu tuần',
                       },
                       {
                         key: 'due_date_alerts',
-                        icon: '⚠️',
+                        icon: AlertCircleIcon,
                         title: 'Cảnh báo nhiệm vụ trễ hạn người dùng',
                         desc: 'Hiển thị cảnh báo khi số lượng nhiệm vụ trễ hạn vượt mức bình thường',
                       },
                       {
                         key: 'system_updates',
-                        icon: '👥',
+                        icon: UserIcon,
                         title: 'Thông báo người dùng mới đăng ký',
                         desc: 'Nhận thông báo khi có tài khoản mới được tạo trong hệ thống',
                       },
                       {
                         key: 'sound_enabled',
-                        icon: '🔔',
+                        icon: BellIcon,
                         title: 'Âm thanh thông báo khi thao tác',
                         desc: 'Phát âm thanh thông báo nhẹ khi lưu hoặc xóa dữ liệu thành công',
                       },
-                    ].map(item => (
-                      <div
-                        key={item.key}
-                        onClick={() => handleToggleNotification(item.key)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.85rem 1rem',
-                          background: 'var(--bg-elevated)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
-                          </div>
-                        </div>
-
-                        {/* Switch */}
+                    ].map(item => {
+                      const ItemIcon = item.icon;
+                      return (
                         <div
+                          key={item.key}
+                          onClick={() => handleToggleNotification(item.key)}
                           style={{
-                            width: 38,
-                            height: 22,
-                            borderRadius: 99,
-                            background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
-                            position: 'relative',
-                            transition: 'background 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.85rem 1rem',
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            cursor: 'pointer',
                           }}
                         >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+                              <ItemIcon size={18} />
+                            </span>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
+                            </div>
+                          </div>
+
+                          {/* Switch */}
                           <div
                             style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              background: '#fff',
-                              position: 'absolute',
-                              top: 3,
-                              left: notifications[item.key] ? 19 : 3,
-                              transition: 'left 0.2s',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              width: 38,
+                              height: 22,
+                              borderRadius: 99,
+                              background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
+                              position: 'relative',
+                              transition: 'background 0.2s',
                             }}
-                          />
+                          >
+                            <div
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                background: '#fff',
+                                position: 'absolute',
+                                top: 3,
+                                left: notifications[item.key] ? 19 : 3,
+                                transition: 'left 0.2s',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1191,7 +1272,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>👥 Người dùng</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>
+                          <UserIcon size={14} />
+                          <span>Người dùng</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
                           {stats?.totalUsers || 0}
                         </div>
@@ -1205,7 +1289,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>📁 Tổng dự án</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                          <FolderKanbanIcon size={14} />
+                          <span>Tổng dự án</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#10b981' }}>
                           {stats?.totalProjects || 0}
                         </div>
@@ -1219,7 +1306,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>📋 Tổng nhiệm vụ</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>
+                          <ClipboardListIcon size={14} />
+                          <span>Tổng nhiệm vụ</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#3b82f6' }}>
                           {stats?.totalTasks || 0}
                         </div>
@@ -1233,7 +1323,10 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>✅ Đã hoàn thành</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                          <CheckCircleIcon size={14} />
+                          <span>Đã hoàn thành</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#10b981' }}>
                           {stats?.doneTasks || 0}
                         </div>
@@ -1271,14 +1364,15 @@ export default function AccountSettingsModal({ admin, onUpdateAdmin, onClose }) 
           isOpen={showDeleteAvatarConfirm}
           title="Xóa ảnh đại diện"
           message="Bạn có chắc chắn muốn xóa ảnh đại diện hiện tại? Ảnh đại diện sẽ được đặt lại về dạng mặc định."
-          confirmText="🗑️ Xóa ảnh"
+          confirmText="Xóa ảnh"
           cancelText="Hủy bỏ"
           variant="danger"
-          icon="🖼️"
+          icon={<TrashIcon size={20} />}
           onConfirm={executeDeleteAvatar}
           onClose={() => setShowDeleteAvatarConfirm(false)}
         />
       )}
-    </div>
+    </ModalOverlay>,
+    document.body
   );
 }

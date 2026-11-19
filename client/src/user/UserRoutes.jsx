@@ -11,9 +11,9 @@ const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 
 function PageFallback() {
   return (
-    <div className="page-loader">
+    <main className="page-loader" id="main-content">
       <div className="spinner" />
-    </div>
+    </main>
   );
 }
 

@@ -44,7 +44,7 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="auth-page">
+      <main className="auth-page" id="main-content">
         <div className="auth-box animate-fadein">
           <div className="auth-title">
             <h1>Link không hợp lệ</h1>
@@ -54,12 +54,12 @@ export default function ResetPassword() {
             <Link to="/forgot-password">Gửi lại email quên mật khẩu</Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
       <div className="auth-box animate-fadein">
         <div className="auth-title">
           <h1>Mật khẩu mới</h1>
@@ -116,6 +116,6 @@ export default function ResetPassword() {
           <Link to="/login">← Đăng nhập</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

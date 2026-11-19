@@ -10,8 +10,7 @@ const { ensureSchema } = require('./config/ensureSchema');
 assertProductionEnv();
 
 const app = require('./app');
-const { sequelize } = require('./models');
-const { User } = require('./models');
+const { sequelize, User } = require('./models');
 
 const PORT = process.env.PORT || 3000;
 const isProd = isCloudRuntime();

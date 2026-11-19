@@ -1,0 +1,15 @@
+# TaskFlow
+
+> TaskFlow là nền tảng quản lý công việc và dự án cá nhân & nhóm thông minh với giao diện Kanban trực quan, đồng bộ đa nền tảng và hỗ trợ AI.
+
+## Các chức năng chính
+
+- [Bảng công việc](/dashboard): Quản lý nhiệm vụ kéo thả theo bảng Kanban, gắn nhãn, thời hạn và điểm phân công.
+- [Quản lý dự án](/projects): Quản lý dự án nhóm, theo dõi thành viên, tiến độ công việc và biểu đồ Burndown Chart.
+- [Đăng nhập](/login): Đăng nhập tài khoản cá nhân qua Email hoặc Google OAuth.
+- [Đăng ký](/register): Đăng ký tài khoản người dùng mới trên hệ thống TaskFlow.
+- [Bảng quản trị](/admin/login): Cổng đăng nhập dành riêng cho Quản trị viên hệ thống.
+
+## API & Tích hợp
+
+- [API Health Check](/api/health): Kiểm tra trạng thái sẵn sàng của máy chủ backend.

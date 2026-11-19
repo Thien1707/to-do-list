@@ -1,7 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import ModalOverlay from '../../components/ModalOverlay';
+import {
+  EyeIcon,
+  EyeOffIcon,
+  UserIcon,
+  LockIcon,
+  PaletteIcon,
+  BarChartIcon,
+  SettingsIcon,
+  CameraIcon,
+  SparklesIcon,
+  TrashIcon,
+  SaveIcon,
+  CheckIcon,
+  ShieldCheckIcon,
+  SunIcon,
+  MoonIcon,
+  LaptopIcon,
+  MailIcon,
+  ClockIcon,
+  MessageSquareIcon,
+  BellIcon,
+  ClipboardListIcon,
+  CheckCircleIcon,
+  ZapIcon,
+  AlertCircleIcon,
+  XIcon,
+} from '../../components/Icons';
 
 const PRESET_AVATARS = [
   { id: 'bot-1', label: 'Robot Alpha', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix' },
@@ -24,7 +53,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
 
   // Profile Form State
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
   const [jobTitle, setJobTitle] = useState(user?.job_title || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -33,6 +61,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   // Avatar Upload State
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarError, setAvatarError] = useState('');
   const [showPresets, setShowPresets] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -43,7 +72,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [sessions, setSessions] = useState([]);
 
   // Preferences State
   const [theme, setTheme] = useState(user?.theme_preference || localStorage.getItem('theme') || 'light');
@@ -56,7 +84,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     }
   );
 
-  // Fetch latest user data, stats, and sessions
+  // Fetch latest user data and stats
   useEffect(() => {
     let isMounted = true;
     const fetchUserData = async () => {
@@ -67,7 +95,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
           const freshUser = data.data.user;
           setUserData(freshUser);
           setName(freshUser.name || '');
-          setPhone(freshUser.phone || '');
           setJobTitle(freshUser.job_title || '');
           setDepartment(freshUser.department || '');
           setBio(freshUser.bio || '');
@@ -83,17 +110,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
       }
     };
 
-    const fetchSessions = async () => {
-      try {
-        const { data } = await api.get('/auth/sessions');
-        if (isMounted && data.success) {
-          setSessions(data.data.sessions || []);
-        }
-      } catch (_) {}
-    };
-
     fetchUserData();
-    fetchSessions();
 
     return () => {
       isMounted = false;
@@ -105,12 +122,27 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setAvatarError('');
+
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn một file ảnh hợp lệ (PNG, JPG, WEBP, GIF)');
+      const msg = 'Không thể tải ảnh lên: Vui lòng chọn tệp ảnh hợp lệ (JPG, PNG, WEBP, GIF).';
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh tối đa là 5MB');
+
+    const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_AVATAR_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const msg = `Không thể tải ảnh lên: Tệp "${file.name}" (${sizeMB} MB) vượt quá giới hạn tối đa 5MB.`;
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setAvatarError(msg);
+      toast.error(msg);
+      e.target.value = '';
       return;
     }
 
@@ -123,6 +155,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const handleUploadAvatar = async () => {
     if (!selectedFile) return;
     setLoading(true);
+    setAvatarError('');
     try {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
@@ -136,10 +169,13 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
         setAvatarUrl(data.data.avatar_url);
         setSelectedFile(null);
         setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         if (onUpdateUser) onUpdateUser(data.data.user);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Tải ảnh đại diện thất bại');
+      const msg = err.response?.data?.message || 'Không thể tải ảnh đại diện lên';
+      setAvatarError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -193,13 +229,8 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const handleCancelSelectedFile = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
+    setAvatarError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // Vietnam Phone Format Validation Algorithm
-  const isPhoneValid = (p) => {
-    if (!p || !p.trim()) return true;
-    return /^(0|\+84)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/.test(p.trim().replace(/\s+/g, ''));
   };
 
   // Save Profile Info (Automatically uploads selected avatar file if present)
@@ -207,11 +238,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Họ và tên không được để trống');
-      return;
-    }
-
-    if (phone && !isPhoneValid(phone)) {
-      toast.error('Số điện thoại không đúng định dạng Việt Nam (10 chữ số)');
       return;
     }
 
@@ -236,7 +262,6 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
 
       const payload = {
         name: name.trim(),
-        phone: phone ? phone.trim().replace(/\s+/g, '') : null,
         job_title: jobTitle.trim(),
         department: department.trim(),
         bio: bio.trim(),
@@ -263,20 +288,22 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
         score: 0,
         label: 'Chưa nhập',
         color: 'var(--text-muted)',
-        criteria: { length: false, case: false, number: false, special: false },
+        criteria: { length: false, letter: false, number: false, special: false },
+        isValid: false,
       };
     }
     const criteria = {
-      length: pwd.length >= 8,
-      case: /[A-Z]/.test(pwd) && /[a-z]/.test(pwd),
+      length: pwd.length >= 6,
+      letter: /[a-zA-Z]/.test(pwd),
       number: /[0-9]/.test(pwd),
-      special: /[^A-Za-z0-9]/.test(pwd),
+      special: /[^a-zA-Z0-9]/.test(pwd),
     };
     const validCount = Object.values(criteria).filter(Boolean).length;
-    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria };
-    if (validCount <= 1) return { score: 1, label: 'Yếu', color: '#ef4444', criteria };
-    if (validCount <= 3) return { score: 2, label: 'Trung bình', color: '#f59e0b', criteria };
-    return { score: 3, label: 'Rất mạnh (Khuyên dùng)', color: '#10b981', criteria };
+    const isValid = criteria.length && criteria.letter && criteria.number && criteria.special;
+
+    if (pwd.length < 6) return { score: 1, label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', criteria, isValid: false };
+    if (!isValid) return { score: 2, label: 'Chưa đủ chuẩn (cần cả chữ, số & ký tự đặc biệt)', color: '#f59e0b', criteria, isValid: false };
+    return { score: 3, label: 'Hợp lệ & Rất mạnh', color: '#10b981', criteria, isValid: true };
   };
 
   const pwDetails = getPasswordDetails(newPassword);
@@ -290,6 +317,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
     }
     if (!newPassword || newPassword.length < 6) {
       toast.error('Mật khẩu mới phải có tối thiểu 6 ký tự');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      toast.error('Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (VD: !@#$%^&*)');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -357,8 +388,8 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
   const userInitials = (name || user?.name || user?.email || 'U').charAt(0).toUpperCase();
   const currentAvatarDisplay = previewUrl || avatarUrl;
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 999 }}>
+  return createPortal(
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
       <div
         className="modal animate-fadein"
         style={{
@@ -397,11 +428,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                fontSize: '1.2rem',
                 boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)',
               }}
             >
-              ⚙️
+              <SettingsIcon size={20} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -438,34 +468,40 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
             }}
           >
             {[
-              { id: 'profile', icon: '👤', label: 'Hồ sơ cá nhân' },
-              { id: 'security', icon: '🔒', label: 'Bảo mật & Mật khẩu' },
-              { id: 'appearance', icon: '🎨', label: 'Giao diện & Tùy chọn' },
-              { id: 'stats', icon: '📊', label: 'Thống kê tài khoản' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: 8,
-                  fontSize: '0.86rem',
-                  fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  background: activeTab === tab.id ? 'var(--primary-light)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: '1.05rem' }}>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+              { id: 'profile', icon: UserIcon, label: 'Hồ sơ cá nhân' },
+              { id: 'security', icon: LockIcon, label: 'Bảo mật & Mật khẩu' },
+              { id: 'appearance', icon: PaletteIcon, label: 'Giao diện & Tùy chọn' },
+              { id: 'stats', icon: BarChartIcon, label: 'Thống kê tài khoản' },
+            ].map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 8,
+                    fontSize: '0.86rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--primary-light)' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TabIcon size={17} />
+                  </span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
 
             {/* Quick User Badge in Nav */}
             <div
@@ -502,8 +538,18 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                 >
                   {name || user?.name}
                 </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  {user?.role === 'admin' ? '🛡️ Quản trị viên' : '👤 Thành viên'}
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {user?.role === 'admin' ? (
+                    <>
+                      <ShieldCheckIcon size={12} style={{ color: 'var(--primary)' }} />
+                      <span>Quản trị viên</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserIcon size={12} />
+                      <span>Thành viên</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -569,11 +615,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '0.75rem',
                           boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
                         }}
                       >
-                        🛡️
+                        <ShieldCheckIcon size={14} />
                       </span>
                     )}
                   </div>
@@ -592,29 +637,68 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         type="button"
                         className="btn btn-secondary btn-sm"
                         onClick={() => fileInputRef.current?.click()}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        📷 Tải ảnh từ máy
+                        <CameraIcon size={14} />
+                        <span>Tải ảnh từ máy</span>
                       </button>
 
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
                         onClick={() => setShowPresets(!showPresets)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        🎭 Chọn avatar mẫu
+                        <SparklesIcon size={14} />
+                        <span>Chọn avatar mẫu</span>
                       </button>
 
                       {(avatarUrl || previewUrl) && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--danger)' }}
+                          style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                           onClick={handleDeleteAvatar}
                         >
-                          🗑️ Xóa ảnh
+                          <TrashIcon size={14} />
+                          <span>Xóa ảnh</span>
                         </button>
                       )}
                     </div>
+
+                    {avatarError && (
+                      <div
+                        role="alert"
+                        style={{
+                          marginTop: '0.65rem',
+                          padding: '0.55rem 0.75rem',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          borderRadius: 8,
+                          color: 'var(--danger)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <AlertCircleIcon size={16} style={{ flexShrink: 0 }} />
+                          <span>{avatarError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAvatarError('')}
+                          className="btn-icon"
+                          style={{ width: 20, height: 20, color: 'var(--danger)', flexShrink: 0 }}
+                          title="Đóng thông báo"
+                        >
+                          <XIcon size={13} />
+                        </button>
+                      </div>
+                    )}
 
                     {selectedFile && (
                       <div
@@ -734,59 +818,36 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Email (Tài khoản)</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="email"
-                          className="form-input"
-                          value={user?.email || ''}
-                          disabled
-                          style={{ opacity: 0.7, cursor: 'not-allowed', paddingRight: '5rem' }}
-                        />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <label className="form-label" style={{ margin: 0 }}>Email (Tài khoản)</label>
                         <span
                           style={{
-                            position: 'absolute',
-                            right: 8,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
                             fontSize: '0.68rem',
                             fontWeight: 600,
                             color: '#10b981',
                             background: 'rgba(16, 185, 129, 0.1)',
                             padding: '0.15rem 0.45rem',
                             borderRadius: 4,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
                           }}
                         >
-                          ✓ Đã xác thực
+                          <CheckCircleIcon size={12} />
+                          <span>Đã xác thực</span>
                         </span>
                       </div>
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={user?.email || ''}
+                        disabled
+                        style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                      />
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label className="form-label" style={{ margin: 0 }}>Số điện thoại</label>
-                        {phone && !isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>
-                            ⚠️ Cần 10 chữ số (VD: 0912 345 678)
-                          </span>
-                        )}
-                        {phone && isPhoneValid(phone) && (
-                          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
-                            ✓ Hợp lệ
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="tel"
-                        className={`form-input ${phone && !isPhoneValid(phone) ? 'input-error' : ''}`}
-                        placeholder="VD: 0912 345 678"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                      />
-                    </div>
-
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Chức danh / Vị trí</label>
                       <input
@@ -797,17 +858,17 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         onChange={e => setJobTitle(e.target.value)}
                       />
                     </div>
-                  </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Phòng ban / Bộ phận</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="VD: Khối Công nghệ thông tin, Thiết kế UI/UX..."
-                      value={department}
-                      onChange={e => setDepartment(e.target.value)}
-                    />
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Phòng ban / Bộ phận</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="VD: Khối Công nghệ thông tin, Thiết kế UI/UX..."
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -828,8 +889,14 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? 'Đang lưu...' : '💾 Lưu thông tin'}
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={loading}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                    >
+                      <SaveIcon size={16} />
+                      <span>{loading ? 'Đang lưu...' : 'Lưu thông tin'}</span>
                     </button>
                   </div>
                 </form>
@@ -845,7 +912,7 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                   Bảo mật & Đổi mật khẩu
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                  Bảo vệ tài khoản với mật khẩu mạnh và xem xét các phiên đăng nhập hiện thời.
+                  Bảo vệ tài khoản với mật khẩu mạnh và quản lý phương thức xác thực.
                 </p>
 
                 {/* Google OAuth Linked Card */}
@@ -905,10 +972,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           type="button"
                           className="btn-icon"
                           onClick={() => setShowCurrentPw(!showCurrentPw)}
-                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                           title={showCurrentPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                         >
-                          {showCurrentPw ? '👁️' : '🙈'}
+                          {showCurrentPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                         </button>
                       </div>
                     </div>
@@ -932,10 +999,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowNewPw(!showNewPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showNewPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showNewPw ? '👁️' : '🙈'}
+                        {showNewPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -962,17 +1029,21 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           <div style={{ flex: 1, background: pwDetails.score >= 3 ? pwDetails.color : 'var(--border)', transition: 'background 0.2s' }} />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.35rem', fontSize: '0.72rem' }}>
-                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.length ? '✓' : '○'}</span> Tối thiểu 8 ký tự
+                          <div style={{ color: pwDetails.criteria.length ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.length ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Tối thiểu 6 ký tự</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.case ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.case ? '✓' : '○'}</span> Chữ hoa & chữ thường
+                          <div style={{ color: pwDetails.criteria.letter ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.letter ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ cái (A-Z, a-z)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.number ? '✓' : '○'}</span> Ít nhất 1 số (0-9)
+                          <div style={{ color: pwDetails.criteria.number ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.number ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Chữ số (0-9)</span>
                           </div>
-                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>{pwDetails.criteria.special ? '✓' : '○'}</span> Ký tự đặc biệt (!@#$)
+                          <div style={{ color: pwDetails.criteria.special ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {pwDetails.criteria.special ? <CheckIcon size={12} /> : <span>○</span>}
+                            <span>Ký tự đặc biệt (!@#$...)</span>
                           </div>
                         </div>
                       </div>
@@ -995,10 +1066,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         type="button"
                         className="btn-icon"
                         onClick={() => setShowConfirmPw(!showConfirmPw)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.05rem' }}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
                         title={showConfirmPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                       >
-                        {showConfirmPw ? '👁️' : '🙈'}
+                        {showConfirmPw ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
 
@@ -1023,54 +1094,14 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={loading || (confirmPassword && newPassword !== confirmPassword)}
+                      disabled={loading || (confirmPassword && newPassword !== confirmPassword) || !pwDetails.isValid}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
                     >
-                      {loading ? 'Đang cập nhật...' : '🔐 Cập nhật mật khẩu'}
+                      <LockIcon size={16} />
+                      <span>{loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}</span>
                     </button>
                   </div>
                 </form>
-
-                {/* Sessions Section */}
-                <div>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                    Phiên đăng nhập hiện thời
-                  </h4>
-                  <div
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      padding: '0.85rem 1rem',
-                      background: 'var(--bg-elevated)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1.4rem' }}>💻</span>
-                      <div>
-                        <div style={{ fontSize: '0.84rem', fontWeight: 600 }}>
-                          {sessions[0]?.browser || 'Google Chrome'} trên {sessions[0]?.os || 'Windows PC'}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Địa chỉ IP: {sessions[0]?.ip || '127.0.0.1'} • Đang hoạt động
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        color: '#10b981',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: 6,
-                      }}
-                    >
-                      🟢 Thiết bị này
-                    </span>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1091,34 +1122,40 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                   <label className="form-label" style={{ marginBottom: '0.75rem' }}>Chủ đề giao diện</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     {[
-                      { id: 'light', icon: '☀️', label: 'Chế độ Sáng', desc: 'Màu sáng thanh thoát, tập trung' },
-                      { id: 'dark', icon: '🌙', label: 'Chế độ Tối', desc: 'Dịu mắt khi làm việc ban đêm' },
-                      { id: 'system', icon: '💻', label: 'Theo hệ thống', desc: 'Tự động đồng bộ với thiết bị' },
-                    ].map(t => (
-                      <div
-                        key={t.id}
-                        onClick={() => handleThemeChange(t.id)}
-                        style={{
-                          border: theme === t.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                          borderRadius: 12,
-                          padding: '1rem',
-                          background: theme === t.id ? 'var(--primary-light)' : 'var(--bg-elevated)',
-                          cursor: 'pointer',
-                          transition: 'all 0.18s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ fontSize: '1.6rem' }}>{t.icon}</span>
-                        <div style={{ fontWeight: 600, fontSize: '0.86rem', color: theme === t.id ? 'var(--primary)' : 'var(--text-primary)' }}>
-                          {t.label}
+                      { id: 'light', icon: SunIcon, label: 'Chế độ Sáng', desc: 'Màu sáng thanh thoát, tập trung' },
+                      { id: 'dark', icon: MoonIcon, label: 'Chế độ Tối', desc: 'Dịu mắt khi làm việc ban đêm' },
+                      { id: 'system', icon: LaptopIcon, label: 'Theo hệ thống', desc: 'Tự động đồng bộ với thiết bị' },
+                    ].map(t => {
+                      const ThemeIcon = t.icon;
+                      const isSelected = theme === t.id;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => handleThemeChange(t.id)}
+                          style={{
+                            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                            borderRadius: 12,
+                            padding: '1rem',
+                            background: isSelected ? 'var(--primary-light)' : 'var(--bg-elevated)',
+                            cursor: 'pointer',
+                            transition: 'all 0.18s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <div style={{ color: isSelected ? 'var(--primary)' : 'var(--text-muted)', marginBottom: 2 }}>
+                            <ThemeIcon size={24} />
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: '0.86rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                            {t.label}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {t.desc}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {t.desc}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1129,78 +1166,83 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                     {[
                       {
                         key: 'email_reminders',
-                        icon: '📬',
+                        icon: MailIcon,
                         title: 'Email nhắc nhở nhiệm vụ hàng ngày',
                         desc: 'Nhận tóm tắt danh sách công việc cần làm vào mỗi buổi sáng qua email',
                       },
                       {
                         key: 'due_date_alerts',
-                        icon: '⏰',
+                        icon: ClockIcon,
                         title: 'Cảnh báo hạn chót (Deadline 24h)',
                         desc: 'Tự động cảnh báo khi có công việc sắp đến hạn trong vòng 24 giờ tới',
                       },
                       {
                         key: 'system_updates',
-                        icon: '💬',
+                        icon: MessageSquareIcon,
                         title: 'Thông báo dự án & bình luận',
                         desc: 'Nhận thông báo khi được giao nhiệm vụ mới hoặc có phản hồi từ thành viên',
                       },
                       {
                         key: 'sound_enabled',
-                        icon: '🔔',
+                        icon: BellIcon,
                         title: 'Âm thanh hiệu ứng hoàn thành',
                         desc: 'Phát âm thanh nhẹ nhàng chúc mừng khi bạn tick hoàn thành một nhiệm vụ',
                       },
-                    ].map(item => (
-                      <div
-                        key={item.key}
-                        onClick={() => handleToggleNotification(item.key)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.85rem 1rem',
-                          background: 'var(--bg-elevated)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
-                          </div>
-                        </div>
-
-                        {/* Switch */}
+                    ].map(item => {
+                      const ItemIcon = item.icon;
+                      return (
                         <div
+                          key={item.key}
+                          onClick={() => handleToggleNotification(item.key)}
                           style={{
-                            width: 38,
-                            height: 22,
-                            borderRadius: 99,
-                            background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
-                            position: 'relative',
-                            transition: 'background 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.85rem 1rem',
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            cursor: 'pointer',
                           }}
                         >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <ItemIcon size={18} />
+                            </span>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.desc}</div>
+                            </div>
+                          </div>
+
+                          {/* Switch */}
                           <div
                             style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              background: '#fff',
-                              position: 'absolute',
-                              top: 3,
-                              left: notifications[item.key] ? 19 : 3,
-                              transition: 'left 0.2s',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              width: 38,
+                              height: 22,
+                              borderRadius: 99,
+                              background: notifications[item.key] ? 'var(--primary)' : 'var(--border)',
+                              position: 'relative',
+                              transition: 'background 0.2s',
                             }}
-                          />
+                          >
+                            <div
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                background: '#fff',
+                                position: 'absolute',
+                                top: 3,
+                                left: notifications[item.key] ? 19 : 3,
+                                transition: 'left 0.2s',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1234,7 +1276,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>📋 Tổng nhiệm vụ</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>
+                          <ClipboardListIcon size={14} />
+                          <span>Tổng nhiệm vụ</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
                           {stats?.totalTasks || 0}
                         </div>
@@ -1248,7 +1293,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>✅ Đã hoàn thành</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                          <CheckCircleIcon size={14} />
+                          <span>Đã hoàn thành</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#10b981' }}>
                           {stats?.completedTasks ?? stats?.doneTasks ?? 0}
                         </div>
@@ -1262,7 +1310,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>⚡ Đang thực hiện</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#3b82f6', fontWeight: 600 }}>
+                          <ZapIcon size={14} />
+                          <span>Đang thực hiện</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#3b82f6' }}>
                           {stats?.inProgressTasks || 0}
                         </div>
@@ -1276,7 +1327,10 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                           padding: '1rem',
                         }}
                       >
-                        <div style={{ fontSize: '0.74rem', color: '#ef4444', fontWeight: 600 }}>🔴 Quá hạn</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', color: '#ef4444', fontWeight: 600 }}>
+                          <AlertCircleIcon size={14} />
+                          <span>Quá hạn</span>
+                        </div>
                         <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#ef4444' }}>
                           {stats?.overdueTasks || 0}
                         </div>
@@ -1325,8 +1379,11 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
                         <div style={{ color: 'var(--text-muted)' }}>
                           Dự án tham gia: <strong style={{ color: 'var(--text-primary)' }}>{stats?.totalProjects || 0} dự án</strong>
                         </div>
-                        <div style={{ color: 'var(--text-muted)' }}>
-                          Trạng thái: <strong style={{ color: '#10b981' }}>🟢 Hoạt động bình thường</strong>
+                        <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>Trạng thái:</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#10b981', fontWeight: 600 }}>
+                            <CheckCircleIcon size={13} /> Hoạt động bình thường
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1346,11 +1403,12 @@ export default function AccountSettingsModal({ user, onUpdateUser, onClose }) {
           confirmText="Xóa ảnh đại diện"
           cancelText="Hủy bỏ"
           variant="danger"
-          icon="🖼️"
+          icon={<TrashIcon size={20} />}
           onConfirm={confirmDeleteAvatar}
           onClose={() => setShowDeleteAvatarConfirm(false)}
         />
       )}
-    </div>
+    </ModalOverlay>,
+    document.body
   );
 }

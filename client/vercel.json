@@ -5,10 +5,34 @@
   "outputDirectory": "dist",
   "headers": [
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(robots\\.txt|sitemap\\.xml|llms\\.txt|ai-catalog\\.json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
-        { "key": "Cross-Origin-Embedder-Policy", "value": "unsafe-none" }
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "unsafe-none"
+        }
       ]
     }
   ],
@@ -22,7 +46,7 @@
       "destination": "https://to-do-list-rx1c.onrender.com/uploads/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml|llms\\.txt|ai-catalog\\.json).*)",
       "destination": "/index.html"
     }
   ]

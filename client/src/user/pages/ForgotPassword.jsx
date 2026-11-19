@@ -38,7 +38,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
       <div className="auth-box animate-fadein">
         <div className="auth-logo">
           <div className="auth-logo-icon">✅</div>
@@ -66,7 +66,6 @@ export default function ForgotPassword() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                autoFocus
               />
             </div>
             <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
@@ -79,6 +78,6 @@ export default function ForgotPassword() {
           <Link to="/login">← Quay lại đăng nhập</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

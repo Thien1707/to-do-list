@@ -27,11 +27,19 @@ const runDueTaskNotificationJob = async () => {
       include: [
         {
           model: User,
+          as: 'owner',
           attributes: ['id', 'name', 'email', 'is_active'],
+        },
+        {
+          model: User,
+          as: 'assignee',
+          attributes: ['id', 'name', 'email', 'is_active'],
+          required: false,
         },
         {
           model: Category,
           attributes: ['name', 'color', 'icon'],
+          required: false,
         },
       ],
       order: [['due_date', 'ASC']],
@@ -39,35 +47,52 @@ const runDueTaskNotificationJob = async () => {
 
     if (tasks.length === 0) {
       console.log('ℹ️ [Scheduler] Không có nhiệm vụ nào sắp hết hạn trong 2 ngày tới.');
-      return { count: 0, usersNotified: 0 };
+      return { count: 0, usersNotified: 0, message: 'Không có nhiệm vụ nào sắp hết hạn trong 2 ngày tới.' };
     }
 
-    // Nhóm task theo từng User
+    // Nhóm task theo từng User (cả người được giao và người tạo task)
     const tasksByUser = {};
+    const addUserTask = (u, task) => {
+      if (!u || !u.is_active || !u.email) return;
+      if (!tasksByUser[u.id]) {
+        tasksByUser[u.id] = {
+          user: u,
+          tasks: [],
+        };
+      }
+      if (!tasksByUser[u.id].tasks.some((existing) => existing.id === task.id)) {
+        tasksByUser[u.id].tasks.push(task);
+      }
+    };
+
     for (const t of tasks) {
-      if (t.User && t.User.is_active && t.User.email) {
-        const uid = t.User.id;
-        if (!tasksByUser[uid]) {
-          tasksByUser[uid] = {
-            user: t.User,
-            tasks: [],
-          };
-        }
-        tasksByUser[uid].tasks.push(t);
+      if (t.assignee) {
+        addUserTask(t.assignee, t);
+      }
+      if (t.owner) {
+        addUserTask(t.owner, t);
       }
     }
 
     let usersNotified = 0;
+    const errors = [];
     for (const group of Object.values(tasksByUser)) {
       console.log(`📩 [Scheduler] Gửi email nhắc nhở cho ${group.user.email} (${group.tasks.length} tasks)...`);
       const result = await sendDueTasksReminder(group.user.email, group.user.name, group.tasks);
       if (result.success) {
         usersNotified++;
+      } else {
+        errors.push({ email: group.user.email, error: result.error || result.message });
       }
     }
 
-    console.log(`✅ [Scheduler] Hoàn tất quét! Đã gửi thông báo đến ${usersNotified} người dùng.`);
-    return { count: tasks.length, usersNotified };
+    console.log(`✅ [Scheduler] Hoàn tất quét! Đã gửi thông báo đến ${usersNotified}/${Object.keys(tasksByUser).length} người dùng.`);
+    return {
+      count: tasks.length,
+      usersNotified,
+      totalUsers: Object.keys(tasksByUser).length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   } catch (err) {
     console.error('❌ [Scheduler] Lỗi khi chạy job nhắc nhở nhiệm vụ:', err.message);
     return { error: err.message };

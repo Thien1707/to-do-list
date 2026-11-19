@@ -5,7 +5,6 @@ const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
-const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
@@ -125,6 +124,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/projects', projectRoutes);
+
+// Robots.txt
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send('User-agent: *\nDisallow: /api/\nDisallow: /uploads/\n');
+});
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Server đang hoạt động', timestamp: new Date().toISOString() }));

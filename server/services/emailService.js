@@ -12,11 +12,14 @@ const getTransporter = () => {
     return null;
   }
 
+  // Tự động làm sạch App Password (xóa khoảng trắng và dấu ngoặc kép nếu user copy nguyên khối 16 ký tự từ Google)
+  const cleanPass = String(pass).replace(/\s+/g, '').replace(/["']/g, '');
+
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user,
-      pass, // Mật khẩu ứng dụng (App Password 16 ký tự của Google)
+      user: String(user).trim(),
+      pass: cleanPass, // Mật khẩu ứng dụng (App Password 16 ký tự của Google)
     },
   });
 };

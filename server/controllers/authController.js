@@ -38,14 +38,14 @@ const avatarStorage = multer.diskStorage({
 
 exports.avatarUpload = multer({
   storage: avatarStorage,
-  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const mime = (file.mimetype || '').toLowerCase();
     if (ALLOWED_AVATAR_EXTS.includes(ext) && ALLOWED_AVATAR_MIMES.includes(mime)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file hình ảnh hợp lệ (JPG, PNG, WEBP, GIF), tối đa 3MB'));
+      cb(new Error('Chỉ chấp nhận file hình ảnh hợp lệ (JPG, PNG, WEBP, GIF), tối đa 5MB'));
     }
   },
 });
@@ -515,6 +515,12 @@ exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự' });
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải bao gồm cả chữ cái, chữ số và ký tự đặc biệt (ví dụ: !@#$%^&*)',
+      });
     }
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp' });

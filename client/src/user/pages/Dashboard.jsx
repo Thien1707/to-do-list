@@ -11,6 +11,20 @@ import TaskDateHistoryModal from '../components/TaskDateHistoryModal';
 import StatsModal from '../components/StatsModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ProjectsPage from './ProjectsPage';
+import {
+  ClipboardListIcon,
+  ZapIcon,
+  CheckCircleIcon,
+  BarChartIcon,
+  FlameIcon,
+  CalendarIcon,
+  PlusIcon,
+  SearchIcon,
+  PencilIcon,
+  TrashIcon,
+  HistoryIcon,
+  LightbulbIcon,
+} from '../../components/Icons';
 
 const ProjectDetailPage = lazy(() => import('./ProjectDetailPage'));
 
@@ -22,9 +36,9 @@ const PRIORITY_LABELS = {
 };
 
 const STATUS_COLS = [
-  { key: 'todo', label: 'Cần làm', emoji: '📋' },
-  { key: 'in_progress', label: 'Đang làm', emoji: '⚡' },
-  { key: 'done', label: 'Hoàn thành', emoji: '✅' },
+  { key: 'todo', label: 'Cần làm', icon: ClipboardListIcon },
+  { key: 'in_progress', label: 'Đang làm', icon: ZapIcon },
+  { key: 'done', label: 'Hoàn thành', icon: CheckCircleIcon },
 ];
 
 const MOTIVATIONAL_QUOTES = [
@@ -100,13 +114,17 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, onViewHistory, isDra
             className="btn-icon"
             title={`Xem lịch sử chỉnh sửa (${task.edit_count || 1} lần)`}
             onClick={() => onViewHistory(task.id)}
-            style={{ color: '#d97706' }}
+            style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            📜
+            <HistoryIcon size={14} />
           </button>
         )}
-        <button className="btn-icon" title="Chỉnh sửa" onClick={() => onEdit(task)}>✏️</button>
-        <button className="btn-icon" title="Xóa" onClick={() => onDelete(task.id)}>🗑️</button>
+        <button className="btn-icon" title="Chỉnh sửa" onClick={() => onEdit(task)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <PencilIcon size={14} />
+        </button>
+        <button className="btn-icon" title="Xóa" onClick={() => onDelete(task.id)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <TrashIcon size={14} />
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
@@ -235,16 +253,21 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange, onViewHistory, isDra
 
       {/* Quick Move Status Pills */}
       <div className="task-status-actions" onClick={e => e.stopPropagation()} style={{ paddingLeft: '1.75rem' }}>
-        {STATUS_COLS.filter(s => s.key !== task.status).map(s => (
-          <button
-            key={s.key}
-            className="status-pill-btn"
-            onClick={() => onStatusChange(task.id, s.key)}
-            title={`Chuyển sang ${s.label}`}
-          >
-            {s.emoji} Chuyển {s.label}
-          </button>
-        ))}
+        {STATUS_COLS.filter(s => s.key !== task.status).map(s => {
+          const ColIcon = s.icon;
+          return (
+            <button
+              key={s.key}
+              className="status-pill-btn"
+              onClick={() => onStatusChange(task.id, s.key)}
+              title={`Chuyển sang ${s.label}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <ColIcon size={11} />
+              <span>Chuyển {s.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -322,13 +345,17 @@ export default function Dashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const params = { limit: 100 };
+      const params = { limit: 100, tz_offset: new Date().getTimezoneOffset() };
       if (filterStatus) params.status = filterStatus;
       if (filterPriority) params.priority = filterPriority;
       if (filterCategory) params.category_id = filterCategory;
       if (filterEditStatus) params.is_edited = filterEditStatus;
       if (filterStoryPoints) params.story_points = filterStoryPoints;
-      if (filterDate) params.due_date = filterDate;
+      if (filterDate) {
+        params.filter_date = filterDate;
+        params.created_from = new Date(`${filterDate}T00:00:00`).toISOString();
+        params.created_to = new Date(`${filterDate}T23:59:59.999`).toISOString();
+      }
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       const { data: body } = await api.get('/tasks/dashboard', { params });
@@ -387,18 +414,6 @@ export default function Dashboard() {
       if (status === 'done') {
         triggerCelebration();
         toast.success('Xuất sắc! Đã hoàn thành nhiệm vụ 🎉');
-
-        // Increment streak if not updated today
-        if (user?.id) {
-          const lastDate = localStorage.getItem(`last_completed_date_${user.id}`);
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (lastDate !== todayStr) {
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            localStorage.setItem(`user_streak_${user.id}`, String(newStreak));
-            localStorage.setItem(`last_completed_date_${user.id}`, todayStr);
-          }
-        }
       } else {
         toast.success('Đã cập nhật trạng thái');
       }
@@ -548,6 +563,22 @@ export default function Dashboard() {
     setFilterStatus('');
   };
 
+  const handleResetToHome = () => {
+    if (isProjectsView) {
+      navigate('/dashboard');
+    }
+    setSelectedProject(null);
+    setFilterStatus('');
+    setFilterCategory('');
+    setFilterPriority('');
+    setFilterEditStatus('');
+    setFilterStoryPoints('');
+    setFilterDate('');
+    setSearch('');
+    setDebouncedSearch('');
+    setSortBy('newest');
+  };
+
   return (
     <div className="app-layout">
       <Sidebar
@@ -557,6 +588,7 @@ export default function Dashboard() {
         activeCategory={isProjectsView ? '' : filterCategory}
         onFilterChange={handleFilterChange}
         onCategoryChange={handleCategoryChange}
+        onResetToHome={handleResetToHome}
         onRefresh={fetchAll}
         onOpenStats={() => setShowStatsModal(true)}
         onSelectProjects={() => setSelectedProject(null)}
@@ -565,7 +597,7 @@ export default function Dashboard() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="main-content">
+      <main className="main-content" id="main-content">
         {isProjectsView ? (
           selectedProject ? (
             <Suspense fallback={<div className="page-loader"><div className="spinner" /></div>}>
@@ -607,9 +639,15 @@ export default function Dashboard() {
             <div
               className="streak-badge-header"
               onClick={() => setShowStatsModal(true)}
-              title="Chuỗi ngày liên tục hoàn thành nhiệm vụ"
+              title={
+                stats.streak_active_today
+                  ? `Chuỗi ${streak} ngày — Hôm nay đã giữ lửa (${stats.today_completed || 1} nhiệm vụ xong)`
+                  : streak > 0
+                    ? `Chuỗi ${streak} ngày — Hoàn thành 1 nhiệm vụ hôm nay để giữ chuỗi!`
+                    : 'Hoàn thành 1 nhiệm vụ hôm nay để bắt đầu chuỗi ngày!'
+              }
             >
-              <span>🔥</span>
+              <FlameIcon size={16} fill={stats.streak_active_today ? 'currentColor' : 'none'} />
               <span style={{ fontWeight: 700, fontSize: '0.84rem' }}>{streak} ngày</span>
             </div>
 
@@ -618,21 +656,20 @@ export default function Dashboard() {
               className="btn btn-ghost btn-sm"
               onClick={() => setShowDateHistoryModal(true)}
               title="Xem lịch sử nhiệm vụ và công việc theo ngày"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              📅 Lịch sử theo ngày
+              <CalendarIcon size={15} />
+              <span>Lịch sử theo ngày</span>
             </button>
 
-            {/* Statistics Button */}
             <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowStatsModal(true)}
-              title="Xem thống kê & thành tựu"
+              id="add-task-btn"
+              className="btn btn-primary"
+              onClick={handleAddNew}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              📊 Thống kê
-            </button>
-
-            <button id="add-task-btn" className="btn btn-primary" onClick={handleAddNew}>
-              ＋ Thêm nhiệm vụ
+              <PlusIcon size={16} />
+              <span>Thêm nhiệm vụ</span>
             </button>
           </div>
         </header>
@@ -654,7 +691,7 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>💡</span>
+              <LightbulbIcon size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
               <span style={{ fontWeight: 500 }}>{dailyQuote}</span>
             </div>
             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
@@ -665,31 +702,36 @@ export default function Dashboard() {
           {/* System Statistics Cards */}
           <div className="stats-grid">
             {[
-              { cls: 'total', icon: '📊', value: stats.total, label: 'Tổng nhiệm vụ', filter: '' },
-              { cls: 'todo', icon: '📋', value: stats.todo, label: 'Cần làm', filter: 'todo' },
-              { cls: 'progress', icon: '⚡', value: stats.in_progress, label: 'Đang làm', filter: 'in_progress' },
-              { cls: 'done', icon: '✅', value: stats.done, label: 'Hoàn thành', filter: 'done' },
-              { cls: 'overdue', icon: '🔴', value: stats.overdue, label: 'Quá hạn', filter: '' },
-            ].map(s => (
-              <div
-                key={s.cls}
-                className={`stat-card ${s.cls}`}
-                onClick={() => {
-                  if (s.filter) {
-                    setFilterCategory('');
-                    setFilterStatus(s.filter);
-                  } else {
-                    setFilterStatus('');
-                  }
-                }}
-              >
-                <div className="stat-icon">{s.icon}</div>
-                <div>
-                  <div className="stat-value">{s.value}</div>
-                  <div className="stat-label">{s.label}</div>
+              { cls: 'total', icon: BarChartIcon, value: stats.total, label: 'Tổng nhiệm vụ', filter: '' },
+              { cls: 'todo', icon: ClipboardListIcon, value: stats.todo, label: 'Cần làm', filter: 'todo' },
+              { cls: 'progress', icon: ZapIcon, value: stats.in_progress, label: 'Đang làm', filter: 'in_progress' },
+              { cls: 'done', icon: CheckCircleIcon, value: stats.done, label: 'Hoàn thành', filter: 'done' },
+              { cls: 'overdue', icon: CalendarIcon, value: stats.overdue, label: 'Quá hạn', filter: '' },
+            ].map(s => {
+              const StatIcon = s.icon;
+              return (
+                <div
+                  key={s.cls}
+                  className={`stat-card ${s.cls}`}
+                  onClick={() => {
+                    if (s.filter) {
+                      setFilterCategory('');
+                      setFilterStatus(s.filter);
+                    } else {
+                      setFilterStatus('');
+                    }
+                  }}
+                >
+                  <div className="stat-icon">
+                    <StatIcon size={22} />
+                  </div>
+                  <div>
+                    <div className="stat-value">{s.value}</div>
+                    <div className="stat-label">{s.label}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Progress bar */}
@@ -712,7 +754,7 @@ export default function Dashboard() {
           {/* Filters, Search & Sort */}
           <div className="filter-bar">
             <div className="search-input-wrapper">
-              <span className="search-icon">🔍</span>
+              <span className="search-icon"><SearchIcon size={16} /></span>
               <input
                 id="search-tasks"
                 type="text"
@@ -774,7 +816,7 @@ export default function Dashboard() {
               style={{ width: 'auto', padding: '0.4rem 0.65rem' }}
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              title="Lọc theo ngày thực hiện"
+              title="Lọc theo ngày tạo hoặc ngày thực hiện"
             />
 
             <select
@@ -864,6 +906,7 @@ export default function Dashboard() {
                 const colTasks = tasksByStatus(col.key);
                 const isDragOver = dragOverCol === col.key;
 
+                const ColIcon = col.icon;
                 return (
                   <div
                     key={col.key}
@@ -877,7 +920,9 @@ export default function Dashboard() {
                   >
                     <div className="kanban-col-header">
                       <div className="kanban-col-title">
-                        <span>{col.emoji}</span>
+                        <span className="kanban-col-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <ColIcon size={16} />
+                        </span>
                         <span>{col.label}</span>
                       </div>
                       <span className="kanban-count">{colTasks.length}</span>
@@ -968,7 +1013,7 @@ export default function Dashboard() {
         </div>
           </>
         )}
-      </div>
+      </main>
 
       {/* Task Edit/Create Modal */}
       {showModal && (
@@ -998,10 +1043,10 @@ export default function Dashboard() {
           isOpen={!!taskToDelete}
           title="Xác nhận xóa nhiệm vụ"
           message={`Bạn có chắc muốn xóa nhiệm vụ "${taskToDelete.title}"?\nHành động này không thể hoàn tác.`}
-          confirmText="🗑️ Xóa nhiệm vụ"
+          confirmText="Xóa nhiệm vụ"
           cancelText="Hủy bỏ"
           variant="danger"
-          icon="🗑️"
+          icon={<TrashIcon size={20} />}
           onConfirm={handleConfirmDelete}
           onClose={() => setTaskToDelete(null)}
         />

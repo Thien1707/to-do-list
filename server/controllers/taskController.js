@@ -10,30 +10,76 @@ const TASK_INCLUDE = [
   { model: Sprint, attributes: ['id', 'name', 'status'], required: false },
 ];
 
-function computeStreakFromDates(dateStrings) {
-  if (!dateStrings?.length) return 0;
-  const dates = new Set(dateStrings.map((d) => String(d).slice(0, 10)));
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+const DEFAULT_TZ_OFFSET_MINUTES = -420; // Asia/Ho_Chi_Minh (UTC+7)
 
-  let checkDate = dates.has(todayStr) ? new Date(today) : dates.has(yesterdayStr) ? yesterday : null;
-  if (!checkDate) return 0;
-
-  let streak = 0;
-  while (true) {
-    const dateStr = checkDate.toISOString().split('T')[0];
-    if (!dates.has(dateStr)) break;
-    streak++;
-    checkDate.setDate(checkDate.getDate() - 1);
+function normalizeTzOffset(rawOffset) {
+  const parsed = parseInt(rawOffset, 10);
+  if (Number.isNaN(parsed) || parsed < -840 || parsed > 840) {
+    return DEFAULT_TZ_OFFSET_MINUTES;
   }
-  return streak;
+  return parsed;
 }
 
-async function fetchUserTaskStats(userId) {
-  const todayStr = new Date().toISOString().split('T')[0];
+function toLocalDateStr(dateInput, tzOffsetMinutes = DEFAULT_TZ_OFFSET_MINUTES) {
+  const ts = dateInput instanceof Date ? dateInput.getTime() : new Date(dateInput).getTime();
+  if (Number.isNaN(ts)) return null;
+  return new Date(ts - tzOffsetMinutes * 60000).toISOString().slice(0, 10);
+}
+
+function shiftDateStr(dateStr, deltaDays) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + deltaDays)).toISOString().slice(0, 10);
+}
+
+/**
+ * World-standard streak algorithm (Todoist / Duolingo / GitHub style):
+ * - Uses genuine completion timestamps (`completed_at`, fallback `updatedAt` for legacy rows).
+ * - Evaluates calendar days in the user's local timezone.
+ * - Preserves yesterday's streak during today's 24h grace window until local midnight.
+ */
+function computeStreakMetrics(completionTimestamps, tzOffsetMinutes = DEFAULT_TZ_OFFSET_MINUTES, now = new Date()) {
+  const todayStr = toLocalDateStr(now, tzOffsetMinutes);
+  const yesterdayStr = shiftDateStr(todayStr, -1);
+
+  const dateCounts = new Map();
+  for (const ts of completionTimestamps || []) {
+    const dayStr = toLocalDateStr(ts, tzOffsetMinutes);
+    if (dayStr && dayStr <= todayStr) {
+      dateCounts.set(dayStr, (dateCounts.get(dayStr) || 0) + 1);
+    }
+  }
+
+  const todayCompleted = dateCounts.get(todayStr) || 0;
+  const streakActiveToday = todayCompleted > 0;
+
+  let streak = 0;
+  let cursor = streakActiveToday ? todayStr : dateCounts.has(yesterdayStr) ? yesterdayStr : null;
+  while (cursor && dateCounts.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateStr(cursor, -1);
+  }
+
+  const sortedDays = Array.from(dateCounts.keys()).sort();
+  let bestStreak = 0;
+  let run = 0;
+  let prevDay = null;
+  for (const day of sortedDays) {
+    run = prevDay && shiftDateStr(prevDay, 1) === day ? run + 1 : 1;
+    if (run > bestStreak) bestStreak = run;
+    prevDay = day;
+  }
+
+  return {
+    streak,
+    best_streak: bestStreak,
+    today_completed: todayCompleted,
+    streak_active_today: streakActiveToday,
+  };
+}
+
+async function fetchUserTaskStats(userId, rawTzOffset) {
+  const tzOffsetMinutes = normalizeTzOffset(rawTzOffset);
+  const todayStr = toLocalDateStr(new Date(), tzOffsetMinutes);
   const [agg] = await sequelize.query(
     `SELECT
       COUNT(*) AS total,
@@ -46,18 +92,20 @@ async function fetchUserTaskStats(userId) {
   );
 
   const since = new Date();
-  since.setDate(since.getDate() - 120);
+  since.setDate(since.getDate() - 365);
   const doneRows = await sequelize.query(
-    `SELECT DISTINCT DATE(updatedAt) AS d
+    `SELECT COALESCE(completed_at, updatedAt) AS completed_ts
      FROM tasks
-     WHERE user_id = :userId AND status = 'done' AND updatedAt >= :since`,
+     WHERE (user_id = :userId OR assignee_id = :userId)
+       AND status = 'done'
+       AND COALESCE(completed_at, updatedAt) >= :since`,
     { replacements: { userId, since }, type: QueryTypes.SELECT }
   );
-  const dateStrings = doneRows.map((r) => {
-    const d = r.d;
-    if (d instanceof Date) return d.toISOString().split('T')[0];
-    return String(d).slice(0, 10);
-  });
+
+  const streakMetrics = computeStreakMetrics(
+    doneRows.map((r) => r.completed_ts),
+    tzOffsetMinutes
+  );
 
   return {
     total: Number(agg?.total) || 0,
@@ -65,8 +113,25 @@ async function fetchUserTaskStats(userId) {
     in_progress: Number(agg?.in_progress) || 0,
     done: Number(agg?.done) || 0,
     overdue: Number(agg?.overdue) || 0,
-    streak: computeStreakFromDates(dateStrings),
+    ...streakMetrics,
   };
+}
+
+/**
+ * Match tasks scheduled for `dateStr` (`due_date`) OR created within that local calendar day (`createdAt`).
+ */
+function buildDateOrCreatedCondition(dateStr, createdFrom, createdTo) {
+  const startBound = createdFrom ? new Date(createdFrom) : new Date(`${dateStr}T00:00:00`);
+  const endBound = createdTo ? new Date(createdTo) : new Date(`${dateStr}T23:59:59.999`);
+  if (!Number.isNaN(startBound.getTime()) && !Number.isNaN(endBound.getTime())) {
+    return {
+      [Op.or]: [
+        { due_date: dateStr },
+        { createdAt: { [Op.between]: [startBound, endBound] } },
+      ],
+    };
+  }
+  return { due_date: dateStr };
 }
 
 async function buildTaskWhereForUser(req) {
@@ -80,6 +145,9 @@ async function buildTaskWhereForUser(req) {
     search,
     is_edited,
     due_date,
+    filter_date,
+    created_from,
+    created_to,
     date_from,
     date_to,
     story_points,
@@ -107,7 +175,11 @@ async function buildTaskWhereForUser(req) {
     where.is_edited = false;
   }
 
-  if (due_date) {
+  const andConditions = [];
+
+  if (filter_date) {
+    andConditions.push(buildDateOrCreatedCondition(filter_date, created_from, created_to));
+  } else if (due_date) {
     where.due_date = due_date;
   } else if (date_from && date_to) {
     where.due_date = { [Op.between]: [date_from, date_to] };
@@ -119,7 +191,13 @@ async function buildTaskWhereForUser(req) {
 
   if (search && search.trim()) {
     const q = `%${search.trim()}%`;
-    where[Op.or] = [{ title: { [Op.like]: q } }, { description: { [Op.like]: q } }];
+    andConditions.push({
+      [Op.or]: [{ title: { [Op.like]: q } }, { description: { [Op.like]: q } }],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    where[Op.and] = andConditions;
   }
 
   return { where };
@@ -164,7 +242,7 @@ exports.getDashboard = async (req, res) => {
         limit: limitNum,
         offset,
       }),
-      fetchUserTaskStats(req.user.id),
+      fetchUserTaskStats(req.user.id, req.query.tz_offset),
       Category.findAll({ where: { user_id: req.user.id }, order: [['name', 'ASC']] }),
     ]);
 
@@ -545,7 +623,7 @@ exports.updateStatus = async (req, res) => {
 // GET /api/tasks/stats
 exports.getStats = async (req, res) => {
   try {
-    const stats = await fetchUserTaskStats(req.user.id);
+    const stats = await fetchUserTaskStats(req.user.id, req.query.tz_offset);
     return res.json({ success: true, data: stats });
   } catch (err) {
     console.error('❌ getStats:', err.message, err.original?.sqlMessage || '');
@@ -652,11 +730,11 @@ exports.getTaskHistory = async (req, res) => {
 // GET /api/tasks/by-date - Retrieve tasks for a specific date + trace moved/rescheduled tasks
 exports.getTasksByDate = async (req, res) => {
   try {
-    const { date, project_id } = req.query;
+    const { date, project_id, created_from, created_to } = req.query;
     if (!date) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp tham số date (YYYY-MM-DD)' });
 
     const formattedDate = String(date).slice(0, 10);
-    const where = { due_date: formattedDate };
+    const where = { ...buildDateOrCreatedCondition(formattedDate, created_from, created_to) };
     if (project_id) {
       const member = await ProjectMember.findOne({ where: { project_id, user_id: req.user.id } });
       if (!member) return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });

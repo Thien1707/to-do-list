@@ -24,13 +24,16 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            if (id.includes('react-router')) {
+              return 'vendor-router';
+            }
+            if (id.includes('react') || id.includes('react-dom')) {
               return 'vendor-react';
             }
             if (id.includes('firebase')) {
               return 'vendor-firebase';
             }
-            if (id.includes('axios') || id.includes('react-hot-toast') || id.includes('canvas-confetti')) {
+            if (id.includes('axios') || id.includes('react-hot-toast')) {
               return 'vendor-utils';
             }
           }

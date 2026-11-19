@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import ModalOverlay from '../../components/ModalOverlay';
+import {
+  BarChartIcon,
+  FlameIcon,
+  AwardIcon,
+  CheckIcon,
+  LockIcon,
+  XIcon,
+} from '../../components/Icons';
 
 export default function StatsModal({ stats, tasks = [], categories = [], streak = 1, onClose }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'achievements'
@@ -8,6 +18,9 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
   const inProgress = stats.in_progress || 0;
   const todo = stats.todo || 0;
   const overdue = stats.overdue || 0;
+  const bestStreak = Math.max(streak, stats.best_streak ?? 0);
+  const todayCompleted = stats.today_completed ?? 0;
+  const streakActiveToday = stats.streak_active_today ?? (todayCompleted > 0);
 
   const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
 
@@ -37,7 +50,7 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
     { id: 2, title: 'Đập tan trì hoãn', desc: 'Hoàn thành ít nhất 1 nhiệm vụ', icon: '🎯', unlocked: done >= 1 },
     { id: 3, title: 'Chiến binh năng suất', desc: 'Hoàn thành 5 nhiệm vụ', icon: '⚡', unlocked: done >= 5, progress: `${Math.min(done, 5)}/5` },
     { id: 4, title: 'Bậc thầy hoàn thành', desc: 'Hoàn thành 10 nhiệm vụ', icon: '🏆', unlocked: done >= 10, progress: `${Math.min(done, 10)}/10` },
-    { id: 5, title: 'Giữ lửa đam mê', desc: 'Đạt chuỗi streak 3 ngày liên tiếp', icon: '🔥', unlocked: streak >= 3, progress: `${Math.min(streak, 3)}/3 ngày` },
+    { id: 5, title: 'Giữ lửa đam mê', desc: 'Đạt chuỗi streak 3 ngày liên tiếp', icon: '🔥', unlocked: bestStreak >= 3, progress: `${Math.min(bestStreak, 3)}/3 ngày` },
     { id: 6, title: 'Kỷ luật thép', desc: 'Không có nhiệm vụ nào bị quá hạn', icon: '🛡️', unlocked: total > 0 && overdue === 0 },
   ];
 
@@ -50,12 +63,23 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
   const progressOffset = total > 0 ? (inProgress / total) * circumference : 0;
   const todoOffset = total > 0 ? (todo / total) * circumference : 0;
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 250 }}>
-      <div className="modal animate-fadein" style={{ maxWidth: 'min(94vw, 640px)' }}>
-        <div className="modal-header">
+  return createPortal(
+    <ModalOverlay onClose={onClose} style={{ zIndex: 9999 }}>
+      <div
+        className="modal animate-fadein"
+        style={{
+          maxWidth: 'min(94vw, 660px)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div className="modal-header" style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '1.3rem' }}>📊</span>
+            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+              <BarChartIcon size={24} />
+            </span>
             <div>
               <h3 style={{ fontSize: '1.1rem' }}>Báo cáo Năng suất & Thành tựu</h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -63,26 +87,40 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
               </p>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose} title="Đóng">✕</button>
+          <button className="btn-icon" onClick={onClose} title="Đóng">
+            <XIcon size={16} />
+          </button>
         </div>
 
         {/* Tab switch */}
-        <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem 1.25rem 0', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
           <button
             className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('overview')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            📈 Biểu đồ thống kê
+            <BarChartIcon size={15} />
+            <span>Biểu đồ thống kê</span>
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'achievements' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('achievements')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            🏆 Thành tựu ({unlockedCount}/{achievements.length})
+            <AwardIcon size={15} />
+            <span>Thành tựu ({unlockedCount}/{achievements.length})</span>
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {activeTab === 'overview' ? (
             <>
               {/* Productivity Score Highlight */}
@@ -103,14 +141,49 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                     Chuỗi ngày rèn luyện
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                    <span style={{ fontSize: '1.8rem' }}>🔥</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.35rem' }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.18) 0%, rgba(234, 88, 12, 0.08) 100%)',
+                        border: '1px solid rgba(249, 115, 22, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#f97316',
+                      }}
+                    >
+                      <FlameIcon size={26} />
+                    </div>
                     <div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f97316' }}>
-                        {streak} ngày liên tiếp
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f97316' }}>
+                          {streak} ngày liên tiếp
+                        </span>
+                        {bestStreak > 0 && (
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: 99,
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            Kỷ lục: {bestStreak} ngày
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Hoàn thành nhiệm vụ mỗi ngày để duy trì ngọn lửa!
+                      <div style={{ fontSize: '0.75rem', color: streakActiveToday ? '#10b981' : 'var(--text-secondary)', fontWeight: streakActiveToday ? 600 : 400, marginTop: '0.15rem' }}>
+                        {streakActiveToday
+                          ? `✓ Đã giữ lửa hôm nay (${todayCompleted} nhiệm vụ hoàn thành)`
+                          : streak > 0
+                            ? '⏳ Hoàn thành 1 nhiệm vụ hôm nay để không bị đứt chuỗi!'
+                            : 'Hoàn thành ít nhất 1 nhiệm vụ mỗi ngày để thắp sáng chuỗi!'}
                       </div>
                     </div>
                   </div>
@@ -124,7 +197,13 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                     {completionRate}%
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                    {completionRate >= 80 ? '🌟 Xuất sắc!' : completionRate >= 50 ? '⚡ Khá tốt!' : '💪 Cần cố gắng hơn'}
+                    {completionRate >= 80 && overdue === 0
+                      ? '🌟 Xuất sắc!'
+                      : completionRate >= 80
+                        ? `⚡ Tốt (còn ${overdue} quá hạn)`
+                        : completionRate >= 50
+                          ? '⚡ Khá tốt!'
+                          : '💪 Cần cố gắng hơn'}
                   </div>
                 </div>
               </div>
@@ -305,9 +384,15 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
                         {ach.title}
                       </div>
                       {ach.unlocked ? (
-                        <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>✓ MỞ KHÓA</span>
+                        <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <CheckIcon size={13} />
+                          <span>ĐÃ MỞ KHÓA</span>
+                        </span>
                       ) : (
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🔒 KHÓA</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <LockIcon size={12} />
+                          <span>CHƯA MỞ</span>
+                        </span>
                       )}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
@@ -325,12 +410,13 @@ export default function StatsModal({ stats, tasks = [], categories = [], streak 
           )}
         </div>
 
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn btn-primary" onClick={onClose}>
             Đã hiểu
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>,
+    document.body
   );
 }

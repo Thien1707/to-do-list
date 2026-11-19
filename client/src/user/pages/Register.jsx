@@ -1,8 +1,18 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { startGoogleSignIn } from '../utils/googleAuth';
 import toast from 'react-hot-toast';
+import {
+  TaskFlowLogo,
+  EyeIcon,
+  EyeOffIcon,
+  MailIcon,
+  LockIcon,
+  UserIcon,
+  AlertCircleIcon,
+  SparklesIcon,
+  CheckIcon,
+} from '../../components/Icons';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
@@ -33,6 +43,12 @@ export default function Register() {
       errs.password = 'Vui lòng nhập mật khẩu';
     } else if (form.password.length < 6) {
       errs.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    } else if (!/[a-zA-Z]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một chữ cái (A-Z hoặc a-z)';
+    } else if (!/[0-9]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một chữ số (0-9)';
+    } else if (!/[^a-zA-Z0-9]/.test(form.password)) {
+      errs.password = 'Mật khẩu phải chứa ít nhất một ký tự đặc biệt (VD: !@#$%^&*)';
     }
 
     if (!form.confirm) {
@@ -81,6 +97,12 @@ export default function Register() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
+      const { startGoogleSignIn } = await import('../utils/googleAuth');
+      const { auth, googleProvider } = await import('../config/firebase');
+      if (!auth || !googleProvider) {
+        toast.error('Chưa thể kết nối Google Firebase. Vui lòng đăng ký bằng Email và Mật khẩu.');
+        return;
+      }
       const result = await startGoogleSignIn();
       if (!result) return;
       await loginWithGoogleFirebase(result.user);
@@ -112,11 +134,20 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page" id="main-content">
+      {/* Decorative ambient background glows */}
+      <div className="auth-ambient-glow auth-ambient-glow-1" aria-hidden="true" />
+      <div className="auth-ambient-glow auth-ambient-glow-2" aria-hidden="true" />
+
       <div className="auth-box animate-fadein">
         <div className="auth-logo">
-          <div className="auth-logo-icon">✅</div>
-          <span style={{ fontWeight: 700, fontSize: '1.25rem' }}>TaskFlow</span>
+          <TaskFlowLogo size={46} />
+          <span className="auth-brand-name">TaskFlow</span>
+        </div>
+
+        <div className="auth-badge-pill">
+          <SparklesIcon size={14} />
+          <span>Bắt đầu miễn phí hôm nay</span>
         </div>
 
         <div className="auth-title">
@@ -127,80 +158,145 @@ export default function Register() {
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="reg-name">Họ và tên *</label>
-            <input
-              id="reg-name"
-              type="text"
-              className={`form-input ${errors.name ? 'input-error' : ''}`}
-              placeholder="Nguyễn Văn A"
-              autoComplete="name"
-              value={form.name}
-              onChange={e => handleChange('name', e.target.value)}
-              autoFocus
-            />
-            {errors.name && <div className="field-error-text">⚠️ {errors.name}</div>}
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <UserIcon size={18} />
+              </span>
+              <input
+                id="reg-name"
+                type="text"
+                className={`form-input auth-input-with-icon ${errors.name ? 'input-error' : ''}`}
+                placeholder="Nguyễn Văn A"
+                autoComplete="name"
+                value={form.name}
+                onChange={e => handleChange('name', e.target.value)}
+              />
+            </div>
+            {errors.name && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.name}</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-email">Email *</label>
-            <input
-              id="reg-email"
-              type="email"
-              className={`form-input ${errors.email ? 'input-error' : ''}`}
-              placeholder="you@example.com"
-              autoComplete="email"
-              value={form.email}
-              onChange={e => handleChange('email', e.target.value)}
-            />
-            {errors.email && <div className="field-error-text">⚠️ {errors.email}</div>}
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <MailIcon size={18} />
+              </span>
+              <input
+                id="reg-email"
+                type="email"
+                className={`form-input auth-input-with-icon ${errors.email ? 'input-error' : ''}`}
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={form.email}
+                onChange={e => handleChange('email', e.target.value)}
+              />
+            </div>
+            {errors.email && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.email}</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-password">Mật khẩu *</label>
-            <div style={{ position: 'relative' }}>
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <LockIcon size={18} />
+              </span>
               <input
                 id="reg-password"
                 type={showPassword ? 'text' : 'password'}
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
-                placeholder="Tối thiểu 6 ký tự"
+                className={`form-input auth-input-with-icon ${errors.password ? 'input-error' : ''}`}
+                placeholder="Gồm chữ cái, số và ký tự đặc biệt"
                 autoComplete="new-password"
                 value={form.password}
                 onChange={e => handleChange('password', e.target.value)}
-                style={{ paddingRight: '2.5rem' }}
+                style={{ paddingRight: '2.75rem' }}
               />
               <button
                 type="button"
+                className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '0.6rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.9rem',
-                }}
                 title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
-            {errors.password && <div className="field-error-text">⚠️ {errors.password}</div>}
+
+            {/* Real-time Password Rules Checklist */}
+            {form.password && (
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.65rem 0.85rem',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  fontSize: '0.72rem',
+                }}
+              >
+                <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Quy ước mật khẩu an toàn:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem' }}>
+                  <div style={{ color: form.password.length >= 6 ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {form.password.length >= 6 ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Tối thiểu 6 ký tự</span>
+                  </div>
+                  <div style={{ color: /[a-zA-Z]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[a-zA-Z]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Chữ cái (A-Z, a-z)</span>
+                  </div>
+                  <div style={{ color: /[0-9]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[0-9]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Chữ số (0-9)</span>
+                  </div>
+                  <div style={{ color: /[^a-zA-Z0-9]/.test(form.password) ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/[^a-zA-Z0-9]/.test(form.password) ? <CheckIcon size={12} /> : <span>○</span>}
+                    <span>Ký tự đặc biệt (!@#$...)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {errors.password && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.password}</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-confirm">Xác nhận mật khẩu *</label>
-            <input
-              id="reg-confirm"
-              type={showPassword ? 'text' : 'password'}
-              className={`form-input ${errors.confirm ? 'input-error' : ''}`}
-              placeholder="Nhập lại mật khẩu"
-              autoComplete="new-password"
-              value={form.confirm}
-              onChange={e => handleChange('confirm', e.target.value)}
-            />
-            {errors.confirm && <div className="field-error-text">⚠️ {errors.confirm}</div>}
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                <LockIcon size={18} />
+              </span>
+              <input
+                id="reg-confirm"
+                type={showPassword ? 'text' : 'password'}
+                className={`form-input auth-input-with-icon ${errors.confirm ? 'input-error' : ''}`}
+                placeholder="Nhập lại mật khẩu"
+                autoComplete="new-password"
+                value={form.confirm}
+                onChange={e => handleChange('confirm', e.target.value)}
+              />
+            </div>
+            {errors.confirm && (
+              <div className="field-error-text">
+                <AlertCircleIcon size={14} />
+                <span>{errors.confirm}</span>
+              </div>
+            )}
           </div>
 
           <button
@@ -236,6 +332,6 @@ export default function Register() {
           Đã có tài khoản? <Link to="/login">Đăng nhập ngay</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

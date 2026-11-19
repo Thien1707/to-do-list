@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import ModalOverlay from '../../components/ModalOverlay';
 
 const FIELD_LABELS = {
   title: 'Tên nhiệm vụ',
@@ -127,8 +129,8 @@ export default function TaskHistoryModal({ taskId, onClose }) {
     ? currentChangedFields
     : Object.keys(FIELD_LABELS);
 
-  return (
-    <div className="modal-overlay animate-fadein" onClick={e => e.target === e.currentTarget && onClose()}>
+  return createPortal(
+    <ModalOverlay className="modal-overlay animate-fadein" onClose={onClose} style={{ zIndex: 9999 }}>
       <div
         className="modal task-history-modal"
         style={{
@@ -675,6 +677,7 @@ export default function TaskHistoryModal({ taskId, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>,
+    document.body
   );
 }

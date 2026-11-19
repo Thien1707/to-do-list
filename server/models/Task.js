@@ -33,6 +33,11 @@ const Task = sequelize.define('Task', {
 }, {
   tableName: 'tasks',
   hooks: {
+    beforeCreate: (task) => {
+      if (task.status === 'done' && !task.completed_at) {
+        task.completed_at = new Date();
+      }
+    },
     beforeUpdate: (task) => {
       if (task.changed('status') && task.status === 'done' && !task.completed_at) {
         task.completed_at = new Date();

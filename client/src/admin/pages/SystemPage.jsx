@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import AdminLayout from '../components/AdminLayout';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function SystemPage() {
   const [sysInfo, setSysInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cleaning, setCleaning] = useState(false);
+  const [triggeringReminder, setTriggeringReminder] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState(null);
 
   const fetchSystemInfo = async () => {
@@ -24,6 +25,41 @@ export default function SystemPage() {
   useEffect(() => {
     fetchSystemInfo();
   }, []);
+
+  const handleTriggerReminders = async () => {
+    setTriggeringReminder(true);
+    try {
+      const { data } = await api.post('/admin/trigger-reminders');
+      if (data.usersNotified > 0) {
+        toast.success(`Đã gửi email nhắc việc cho ${data.usersNotified} người dùng (${data.count} nhiệm vụ)!`);
+      } else if (data.count === 0) {
+        toast('Không có nhiệm vụ nào sắp hết hạn trong 2 ngày tới.', { icon: 'ℹ️' });
+      } else {
+        const errMsg = data.errors?.[0]?.error || 'Chưa gửi được email';
+        toast.error(`Chưa gửi được email: ${errMsg}\nHãy cấu hình EMAIL_USER và EMAIL_PASS trong file .env trên server.`, { duration: 7000 });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi kích hoạt tiến trình gửi email');
+    } finally {
+      setTriggeringReminder(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    const email = window.prompt('Nhập địa chỉ email nhận thư thử nghiệm:');
+    if (!email) return;
+    setTestingEmail(true);
+    try {
+      const { data } = await api.post('/admin/test-email', { email });
+      toast.success(data.message || 'Gửi email thử nghiệm thành công! Hãy kiểm tra hộp thư.');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      const advice = err.response?.data?.advice;
+      toast.error(`${msg}${advice ? `\n👉 ${advice}` : ''}`, { duration: 9000 });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
 
   const handleCleanup = () => {
     setConfirmModalConfig({
@@ -85,7 +121,7 @@ export default function SystemPage() {
   };
 
   return (
-    <AdminLayout active="system">
+    <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2>⚙️ Giám sát Hệ thống & Dữ liệu</h2>
@@ -221,6 +257,45 @@ export default function SystemPage() {
                 }}
               >
                 <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>⏰ Cron Job & Email nhắc việc định kỳ</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Tự động quét và gửi email cảnh báo nhiệm vụ sắp hết hạn (trước 2 ngày) lúc 08:00 sáng hàng ngày.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleTestEmail}
+                    disabled={testingEmail}
+                    title="Gửi 1 email kiểm tra kết nối Gmail SMTP"
+                  >
+                    {testingEmail ? 'Đang gửi...' : '✉️ Gửi email thử nghiệm'}
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={handleTriggerReminders}
+                    disabled={triggeringReminder}
+                    title="Kích hoạt quét toàn bộ nhiệm vụ sắp hết hạn và gửi email ngay lập tức"
+                  >
+                    {triggeringReminder ? 'Đang quét & gửi...' : '🚀 Quét & Gửi email ngay'}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.85rem 1rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-elevated)',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                }}
+              >
+                <div>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>📖 Tài liệu Swagger API dành cho Kỹ thuật viên</div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                     Trang OpenAPI/Swagger đặc tả các endpoint API (chỉ dùng khi phát triển ứng dụng di động hoặc tích hợp bên thứ ba).
@@ -254,6 +329,6 @@ export default function SystemPage() {
           onClose={() => setConfirmModalConfig(null)}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

@@ -9,6 +9,8 @@ router.use(requireAdmin);
 router.get('/stats', adminCtrl.getStats);
 router.get('/system', adminCtrl.getSystemInfo);
 router.post('/cleanup', adminCtrl.cleanupTasks);
+router.post('/trigger-reminders', adminCtrl.triggerDueReminders);
+router.post('/test-email', adminCtrl.testEmail);
 
 // Quản lý người dùng
 router.get('/users', adminCtrl.getUsers);

@@ -4,7 +4,7 @@ import { createApiClient, getBackendOrigin, toApiPath } from '../../config/apiBa
 const api = createApiClient();
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('adminToken');
+  const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
