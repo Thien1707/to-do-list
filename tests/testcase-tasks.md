@@ -13,6 +13,7 @@
 | :---: | :---: | :--- | :---: | :---: |
 | **v1.0** | 10/11/2026 | Thêm/Sửa/Xóa Task, Đổi trạng thái Toggle, Danh mục, Lọc, Tìm kiếm | 11 ca | 100% PASS |
 | **v1.1** | 17/11/2026 | Kiểm thử Lịch sử sửa đổi Task (`TaskHistory`), Bình luận Task, Kiểm thử chặn tiêu đề rỗng (Validation) | 4 ca | 3 PASS, 1 FAIL (Phát hiện BUG-01) |
+| **v1.2** | 19/11/2026 | Kiểm thử thuật toán tính chuỗi ngày Streak theo múi giờ (UTC+7) & Bộ lọc ngày mở rộng (`filter_date`) | 2 ca | 100% PASS |
 | *[Sau này]* | *[Ngày add]* | *Ví dụ: Kéo thả Task giữa các cột Kanban, Đính kèm tệp tin file (Attachment)...* | *...* | *...* |
 
 ---
@@ -23,7 +24,7 @@
 
 | Test Case ID | Ngày thêm | Tên Kịch Bản | Dữ Liệu Đầu Vào | Kết Quả Mong Đợi | Kết Quả Thực Tế (Actual) | Trạng Thái | Ngày Test |
 | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :---: |
-| **TC_TSK_01** | 10/11/2026 | Thêm nhiệm vụ đầy đủ thông tin | `title`: "Làm báo cáo kiểm thử"<br>`priority`: "high", `due_date`: "2026-11-30" | `201 Created`, tạo thành công task | `201 Created`, nhận đúng ID task | **PASS** | 17/11/2026 |
+| **TC_TSK_01** | 10/11/2026 | Thêm nhiệm vụ đầy đủ thông tin | `title`: "Làm báo cáo kiểm thử"<br>`priority`: "high", `due_date`: "2026-11-30" | `201 Created`, tạo thành công task | `201 Created`, task xuất hiện trong CSDL | **PASS** | 17/11/2026 |
 | **TC_TSK_02** | 17/11/2026 | Thêm nhiệm vụ để trống Tiêu đề | `title`: ""<br>`priority`: "medium" | Phải báo lỗi `400 Bad Request`: "Tiêu đề không được để trống" | **Backend trả về `201 Created`** và lưu task tiêu đề rỗng vào DB | ❌ **FAIL (BUG-01)** | 17/11/2026 |
 | **TC_TSK_03** | 10/11/2026 | Xem danh sách nhiệm vụ cá nhân | Token hợp lệ của user | Trả về đúng danh sách tasks của chính mình | `200 OK`, danh sách phân trang chuẩn | **PASS** | 17/11/2026 |
 | **TC_TSK_04** | 10/11/2026 | Tìm kiếm nhiệm vụ theo từ khóa | Query: `?search=kiểm thử` | Lọc đúng các task chứa từ khóa | `200 OK`, kết quả lọc chính xác | **PASS** | 17/11/2026 |
@@ -34,6 +35,8 @@
 | **TC_TSK_09** | 17/11/2026 | Thêm bình luận vào nhiệm vụ | `content`: "Đã hoàn thành test phần này" | `201 Created`, bình luận hiển thị dưới task | `201 Created`, bình luận được lưu kèm user | **PASS** | 17/11/2026 |
 | **TC_TSK_10** | 10/11/2026 | Lấy số liệu thống kê Dashboard | `GET /api/tasks/dashboard` | Trả về tổng số việc, số việc hoàn thành, overdue | `200 OK`, thống kê tiến độ chính xác | **PASS** | 17/11/2026 |
 | **TC_TSK_11** | 10/11/2026 | Xóa nhiệm vụ | `DELETE /api/tasks/:id` | `200 OK`, task bị xóa khỏi DB | `200 OK`, task biến mất khỏi danh sách | **PASS** | 17/11/2026 |
-| **TC_CAT_01** | 10/11/2026 | Tạo danh mục mới | `name`: "Học tập", `color`: "#3b82f6" | `201 Created`, tạo danh mục mới | `201 Created`, danh mục xuất hiện ở Sidebar | **PASS** | 17/11/2026 |
+| **TC_CAT_01** | 10/11/2026 | Tạo danh mục mới | `name`: "Học tập", `color`: "#3b82f6" | `201 Created`, danh mục xuất hiện ở Sidebar | `201 Created`, danh mục xuất hiện ở Sidebar | **PASS** | 17/11/2026 |
 | **TC_CAT_02** | 10/11/2026 | Lấy danh sách danh mục | `GET /api/tasks/categories` | `200 OK`, trả về mảng danh mục | `200 OK`, danh sách đầy đủ | **PASS** | 17/11/2026 |
 | **TC_CAT_03** | 10/11/2026 | Xóa danh mục | `DELETE /api/tasks/categories/:id` | `200 OK`, xóa danh mục, set task category về null | `200 OK`, các task không bị mất | **PASS** | 17/11/2026 |
+| **TC_TSK_STRK_01** | **19/11/2026** | Thống kê chuỗi ngày Streak theo múi giờ | `GET /api/tasks/stats?tz_offset=-420` | `200 OK`, trả về `streak`, `best_streak`, `today_completed` chuẩn múi giờ UTC+7 | `200 OK`, trả về đầy đủ các chỉ số Streak | **PASS** | 19/11/2026 |
+| **TC_TSK_FLT_01** | **19/11/2026** | Lọc theo ngày tạo hoặc hạn chót | Query: `?filter_date=2026-11-19` | `200 OK`, lọc các task có hạn chót HOẶC tạo trong ngày | `200 OK`, lọc chính xác theo điều kiện OR | **PASS** | 19/11/2026 |

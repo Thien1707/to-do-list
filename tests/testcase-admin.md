@@ -13,6 +13,7 @@
 | :---: | :---: | :--- | :---: | :---: |
 | **v1.0** | 10/11/2026 | Khung kiểm thử chức năng Admin | 4 ca | Bản thảo ban đầu |
 | **v1.1** | 17/11/2026 | Kiểm thử thực tế API & UI: Xem thống kê toàn hệ thống, Giám sát tài nguyên máy chủ, Xem toàn bộ Users, Giám sát Tasks, Dọn dẹp task rác (Cleanup) | 6 ca | 100% PASS |
+| **v1.2** | 19/11/2026 | Kiểm thử các tính năng mới: Kích hoạt quét nhắc việc khẩn cấp (`trigger-reminders`) & Kiểm tra cấu hình gửi email SMTP (`test-email`) | 2 ca | 100% PASS |
 | *[Sau này]* | *[Ngày add]* | *Ví dụ: Khóa tài khoản người dùng, Đặt lại mật khẩu thành viên qua Admin...* | *...* | *...* |
 
 ---
@@ -29,3 +30,5 @@
 | **TC_ADM_06** | 17/11/2026 | Giám sát toàn bộ nhiệm vụ hệ thống | Token Admin | `200 OK`, xem được task của mọi người dùng | `200 OK`, hiển thị đầy đủ kèm thông tin chủ sở hữu | **PASS** | 17/11/2026 |
 | **TC_ADM_07** | 17/11/2026 | Dọn dẹp các nhiệm vụ đã hủy/quá hạn | `days_old`: 90, `status`: "cancelled" | `200 OK`, xóa các task rác thỏa điều kiện | `200 OK`, báo cáo số lượng task đã dọn dẹp | **PASS** | 17/11/2026 |
 | **TC_ADM_08** | 17/11/2026 | Chặn User thường gọi API Quản trị | Token của tài khoản role `user` | Từ chối truy cập: `403 Forbidden` | `403 Forbidden`, bảo mật nghiêm ngặt phân quyền | **PASS** | 17/11/2026 |
+| **TC_ADM_REM_01** | **19/11/2026** | Kích hoạt quét nhắc việc khẩn cấp | `POST /api/admin/trigger-reminders` | `200 OK`, quét các task sắp đến hạn và gửi email cảnh báo | `200 OK`, thông báo quét nhắc việc thành công | **PASS** | 19/11/2026 |
+| **TC_ADM_EML_01** | **19/11/2026** | Kiểm tra cấu hình gửi email SMTP | `POST /api/admin/test-email`<br>`email`: "admin@taskmanager.com" | Kiểm tra kết nối SMTP hoặc hướng dẫn cấu hình khi thiếu credentials | Phản hồi chính xác: Trả về hướng dẫn App Password khi chưa set ENV | **PASS** | 19/11/2026 |

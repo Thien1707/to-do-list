@@ -1,6 +1,6 @@
 # BỘ KỊCH BẢN KIỂM THỬ: XÁC THỰC & QUẢN LÝ TÀI KHOẢN (AUTH & ACCOUNT)
 
-- **Dự án:** Quản lý Nhiệm vụ Cá nhân (Personal Task Manager / To-Do List)
+- **Dự án:** Quản lý Nhiệm vụ Cá nhân & Nhóm (TaskFlow / To-Do List)
 - **Mã phân hệ:** MOD-AUTH
 - **Tester thực hiện:** Nguyễn Hoàng Minh Nhật (MSSV: 2374802010363)
 - **Môi trường:** Node.js v22 + Express 5 (`http://localhost:3000`) & React 19 (`http://localhost:5173`)
@@ -13,7 +13,8 @@
 | :---: | :---: | :--- | :---: | :---: |
 | **v1.0** | 10/11/2026 | Đăng ký (FR-01), Đăng nhập (FR-02), Quản lý Token | 9 ca | 100% PASS |
 | **v1.1** | 17/11/2026 | Đăng nhập Admin, Chặn quyền User thường, Chống Brute-Force Rate Limit, Cập nhật Profile | 6 ca | 100% PASS |
-| *[Sau này]* | *[Ngày add]* | *Ví dụ: Đăng nhập bằng Google Firebase, Xác thực 2 lớp (2FA)...* | *...* | *...* |
+| **v1.2** | 19/11/2026 | Kiểm thử độ phức tạp mật khẩu mới (Chữ cái, Chữ số, Ký tự đặc biệt) & Giới hạn upload Avatar (5MB) | 4 ca | 100% PASS |
+| *[Sau này]* | *[Ngày add]* | *Ví dụ: Đăng nhập Google Firebase, Xác thực 2 lớp (2FA)...* | *...* | *...* |
 
 ---
 
@@ -38,3 +39,7 @@
 | **TC_PROF_01**| 17/11/2026 | Lấy thông tin cá nhân (/me) | Header chứa Bearer token hợp lệ | Trả về thông tin profile người dùng | `200 OK`, trả về đúng thông tin user | **PASS** | 17/11/2026 |
 | **TC_PROF_02**| 17/11/2026 | Cập nhật Profile (Họ tên, Bio) | `name`: "Nhật Updated", `bio`: "QA" | `200 OK`, lưu thông tin mới vào DB | `200 OK`, DB cập nhật tên mới | **PASS** | 17/11/2026 |
 | **TC_SEC_01** | 17/11/2026 | Chống Brute-force (>20 lần sai/15p)| Gửi liên tục request sai mật khẩu | Báo lỗi `429 Too Many Requests` | Rate limit kích hoạt sau ngưỡng tối đa | **PASS** | 17/11/2026 |
+| **TC_AUTH_PWD_01** | **19/11/2026** | Chặn mật khẩu thiếu chữ số | `password`: "PasswordOnly@" | Báo lỗi `400`: "Mật khẩu phải chứa ít nhất một chữ số" | Trả về `400 Bad Request`, chặn tạo tài khoản | **PASS** | 19/11/2026 |
+| **TC_AUTH_PWD_02** | **19/11/2026** | Chặn mật khẩu thiếu ký tự đặc biệt | `password`: "Password123" | Báo lỗi `400`: "Mật khẩu phải chứa ít nhất một ký tự đặc biệt" | Trả về `400 Bad Request`, chặn tạo tài khoản | **PASS** | 19/11/2026 |
+| **TC_AUTH_PWD_03** | **19/11/2026** | Đăng ký với mật khẩu mạnh hợp lệ | `password`: "Password123@!" | `201 Created`, chấp thuận mật khẩu đạt chuẩn | Trả về `201 Created`, đăng ký thành công | **PASS** | 19/11/2026 |
+| **TC_AUTH_AVT_01** | **19/11/2026** | Chặn upload Avatar vượt quá 5MB | Tệp ảnh dung lượng > 5MB | Báo lỗi `400`: "Kích thước tệp vượt quá giới hạn tối đa 5MB" | Trả về `400 Bad Request`, chặn file quá tải | **PASS** | 19/11/2026 |
