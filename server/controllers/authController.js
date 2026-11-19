@@ -212,7 +212,9 @@ exports.googleFirebaseLogin = async (req, res) => {
     // Cryptographic verification with Google OAuth TokenInfo API if idToken provided
     if (idToken) {
       try {
-        const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`, {
+          signal: AbortSignal.timeout(5000),
+        });
         if (resp.ok) {
           const googlePayload = await resp.json();
           if (googlePayload.email) {

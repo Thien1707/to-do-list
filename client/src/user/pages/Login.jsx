@@ -95,6 +95,13 @@ export default function Login() {
         );
         return;
       }
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        toast.error(
+          'Hết thời gian chờ kết nối máy chủ. Máy chủ Render có thể đang ở chế độ ngủ (Sleep), vui lòng bấm thử lại!',
+          { duration: 8000 }
+        );
+        return;
+      }
       if (err.code === 'auth/popup-closed-by-user') {
         toast('Đã đóng cửa sổ đăng nhập Google (hoặc thử lại — production dùng chuyển hướng Google)');
       } else if (err.code === 'auth/cancelled-popup-request') {

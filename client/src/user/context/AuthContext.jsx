@@ -26,21 +26,55 @@ export const AuthProvider = ({ children }) => {
     try {
       idToken = await firebaseUser.getIdToken();
     } catch (_) {}
-    const { data } = await api.post('/auth/google-firebase', {
-      idToken,
-      name: firebaseUser.displayName,
-      email: firebaseUser.email,
-      avatar_url: firebaseUser.photoURL,
-      google_id: firebaseUser.uid,
-    });
-    localStorage.setItem('accessToken', data.data.accessToken);
-    localStorage.setItem('user', JSON.stringify(data.data.user));
-    if (data.data.user?.role === 'admin') {
-      localStorage.setItem('adminToken', data.data.accessToken);
-      localStorage.setItem('adminUser', JSON.stringify(data.data.user));
+
+    // Thông báo nếu server khởi động chậm (Render cold start)
+    const coldTimer = setTimeout(() => {
+      toast.loading('Máy chủ Render đang khởi động lại (thường mất 30-50s), vui lòng đợi...', { id: 'render-cold' });
+    }, 3500);
+
+    try {
+      const payload = {
+        idToken,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        avatar_url: firebaseUser.photoURL,
+        google_id: firebaseUser.uid,
+      };
+
+      // Gửi request với timeout 90s cho Render cold start
+      let res;
+      try {
+        res = await api.post('/auth/google-firebase', payload, { timeout: 90000 });
+      } catch (firstErr) {
+        // Tự động thử lại 1 lần nếu gặp timeout / network error (do server vừa boot xong)
+        const isTimeout = firstErr.code === 'ECONNABORTED' || firstErr.message?.includes('timeout');
+        const isNetworkErr = firstErr.message === 'Network Error' || !firstErr.response;
+        if (isTimeout || isNetworkErr) {
+          toast.loading('Đang thử kết nối lại với máy chủ...', { id: 'render-cold' });
+          await new Promise((r) => setTimeout(r, 2000));
+          res = await api.post('/auth/google-firebase', payload, { timeout: 90000 });
+        } else {
+          throw firstErr;
+        }
+      }
+
+      clearTimeout(coldTimer);
+      toast.dismiss('render-cold');
+
+      const data = res.data;
+      localStorage.setItem('accessToken', data.data.accessToken);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+      if (data.data.user?.role === 'admin') {
+        localStorage.setItem('adminToken', data.data.accessToken);
+        localStorage.setItem('adminUser', JSON.stringify(data.data.user));
+      }
+      setUser(data.data.user);
+      return data;
+    } catch (err) {
+      clearTimeout(coldTimer);
+      toast.dismiss('render-cold');
+      throw err;
     }
-    setUser(data.data.user);
-    return data;
   }, []);
 
   useEffect(() => {
@@ -79,10 +113,23 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         console.error('Google redirect sign-in:', err);
         sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        const isNetworkErr = err.message === 'Network Error' || !err.response;
+
         if (err.response?.status === 404) {
           toast.error(
-            'Đăng nhập Google OK nhưng backend trả 404. Cấu hình RENDER_API_ORIGIN (URL Render) trên Vercel.',
-            { duration: 9000 }
+            'Lỗi 404: Không kết nối được backend. Hãy kiểm tra URL Render hoặc biến môi trường RENDER_API_ORIGIN trên Vercel.',
+            { duration: 10000 }
+          );
+        } else if (isTimeout) {
+          toast.error(
+            'Hết thời gian chờ kết nối tới máy chủ (Timeout). Máy chủ Render có thể đang ở chế độ ngủ (Sleep) hoặc URL backend chưa đúng. Vui lòng thử đăng nhập lại!',
+            { duration: 10000 }
+          );
+        } else if (isNetworkErr) {
+          toast.error(
+            'Không thể kết nối đến máy chủ backend (Network Error). Hãy kiểm tra xem backend trên Render có đang hoạt động không.',
+            { duration: 10000 }
           );
         } else {
           toast.error(
